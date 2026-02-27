@@ -104,10 +104,6 @@ case $EVENT in
 
   auto_assign)
     assign_by_capacity
-    ;;
-
-  dev_started)
-    update_issue "in_progress" "developer"
     /workspace/scripts/automation.sh $PROJECT $REPO $ISSUE "In Progress"
     ;;
 
@@ -122,6 +118,7 @@ case $EVENT in
     ;;
 
   pr_merged)
+    release_capacity   # remove issue da lista do dev
     update_issue "done" "lead"
     gh issue close $ISSUE --repo $REPO
     /workspace/scripts/automation.sh $PROJECT $REPO $ISSUE "Done"
