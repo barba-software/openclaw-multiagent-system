@@ -1,0 +1,18 @@
+{
+  "project": "quemresolve",
+  "repo": "barba-software/quemresolve-backend",
+  "created_at": "2026-02-27T07:24:50.182691",
+  "agents": {
+    "developer-1": {
+      "role": "developer",
+      "capacity": 2,
+      "active_issues": []
+    },
+    "developer-2": {
+      "role": "developer",
+      "capacity": 2,
+      "active_issues": []
+    }
+  },
+  "issues": {}
+}
