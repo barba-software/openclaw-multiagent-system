@@ -28,7 +28,12 @@ Métrica afetada
 
 Execução:
 
-/workspace/scripts/automation.sh $PROJECT $REPO $ISSUE_NUMBER "Inbox"
+gh issue create \
+  --repo {repo} \
+  --title "{titulo}" \
+  --body "{conteúdo formatado}"
+
+/workspace/scripts/automation.sh {projeto} {repo} {numero da issue} "Inbox"
 
 Nunca criar issue vaga.
 Nunca deixar critério de aceite vazio.
