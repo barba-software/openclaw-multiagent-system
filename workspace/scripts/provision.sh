@@ -21,7 +21,12 @@ if ! command -v gh &> /dev/null; then
   exit 1
 fi
 
-if ! command -v clawdbot &> /dev/null; then
+if ! command extension list gh &> /dev/null; then
+  echo "❌ Github CLI extension não instalada."
+  exit 1
+fi
+
+if ! command -v openclaw &> /dev/null; then
   echo "❌ OpenClaw não instalado."
   exit 1
 fi
@@ -64,10 +69,10 @@ create_dir_if_missing() {
 
 create_session_if_missing() {
   SESSION=$1
-  if clawdbot sessions list | grep -q "$SESSION"; then
+  if openclaw sessions list | grep -q "$SESSION"; then
     echo "⚠ Sessão já existe $SESSION"
   else
-    clawdbot sessions create "$SESSION"
+    openclaw sessions create "$SESSION"
     echo "✔ Sessão criada $SESSION"
   fi
 }
@@ -77,10 +82,10 @@ create_cron_if_missing() {
   SCHEDULE=$2
   MESSAGE=$3
 
-  if clawdbot cron list | grep -q "$NAME"; then
+  if openclaw cron list | grep -q "$NAME"; then
     echo "⚠ Cron já existe $NAME"
   else
-    clawdbot cron add \
+    openclaw cron add \
       --name "$NAME" \
       --cron "$SCHEDULE" \
       --session "isolated" \
@@ -168,17 +173,65 @@ create_label_if_missing "agent:developer" "1d76db" "Responsável Developer"
 create_label_if_missing "agent:reviewer" "c2e0c6" "Responsável Reviewer"
 
 # ==============================
-# 📊 PROJECT BOARD
+# 📊 PROJECT BOARD + STATUS COLUMNS
 # ==============================
+
+echo ""
+echo "📊 Configurando Project Board..."
 
 BOARD_NAME="$PROJECT Board"
 
-if gh project list --owner "$OWNER" | grep -q "$BOARD_NAME"; then
-  echo "⚠ Project board já existe"
+# Criar board se não existir
+BOARD_ID=$(gh project list --owner "$OWNER" --format json | jq -r ".[] | select(.title==\"$BOARD_NAME\") | .id")
+
+if [ -z "$BOARD_ID" ]; then
+  echo "Criando novo Project Board..."
+  gh project create --owner "$OWNER" --title "$BOARD_NAME" > /dev/null
+  BOARD_ID=$(gh project list --owner "$OWNER" --format json | jq -r ".[] | select(.title==\"$BOARD_NAME\") | .id")
+  echo "✔ Board criado"
 else
-  gh project create --owner "$OWNER" --title "$BOARD_NAME"
-  echo "✔ Project board criado"
+  echo "⚠ Board já existe"
 fi
+
+# Verificar se campo Status existe
+STATUS_FIELD_ID=$(gh project field-list "$BOARD_ID" --format json | jq -r ".[] | select(.name==\"Status\") | .id")
+
+if [ -z "$STATUS_FIELD_ID" ]; then
+  echo "Criando campo Status..."
+  gh project field-create "$BOARD_ID" \
+    --name "Status" \
+    --data-type SINGLE_SELECT > /dev/null
+
+  STATUS_FIELD_ID=$(gh project field-list "$BOARD_ID" --format json | jq -r ".[] | select(.name==\"Status\") | .id")
+  echo "✔ Campo Status criado"
+else
+  echo "⚠ Campo Status já existe"
+fi
+
+# Função para criar opção de status se não existir
+create_status_option_if_missing () {
+  OPTION_NAME=$1
+
+  if gh project field-list "$BOARD_ID" --format json | jq -e ".[] | select(.name==\"Status\") | .options[] | select(.name==\"$OPTION_NAME\")" > /dev/null; then
+    echo "⚠ Status já existe: $OPTION_NAME"
+  else
+    gh project field-option-create "$BOARD_ID" \
+      --field-id "$STATUS_FIELD_ID" \
+      --name "$OPTION_NAME" > /dev/null
+    echo "✔ Status criado: $OPTION_NAME"
+  fi
+}
+
+echo ""
+echo "Criando colunas de status..."
+
+create_status_option_if_missing "Inbox"
+create_status_option_if_missing "In Progress"
+create_status_option_if_missing "Review"
+create_status_option_if_missing "Blocked"
+create_status_option_if_missing "Done"
+
+echo "✔ Colunas configuradas com sucesso"
 
 # ==============================
 # 📦 REGISTRY GLOBAL
