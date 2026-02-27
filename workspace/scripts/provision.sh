@@ -21,13 +21,18 @@ if ! command -v gh &> /dev/null; then
   exit 1
 fi
 
-if ! command extension list gh &> /dev/null; then
+if ! command -v gh extesion list &> /dev/null; then
   echo "❌ Github CLI extension não instalada."
   exit 1
 fi
 
 if ! command -v openclaw &> /dev/null; then
   echo "❌ OpenClaw não instalado."
+  exit 1
+fi
+
+if ! command -v jq &> /dev/null; then
+  echo "❌ Jq não instalado."
   exit 1
 fi
 
