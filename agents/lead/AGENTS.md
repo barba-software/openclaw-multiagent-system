@@ -7,7 +7,7 @@
 3. Se detectar bloqueio:
    - Tentar resolver ou escalar.
    - Utilize as validações e as rotinas de alerta fornecidas pela própria skill.
-   - Notificar no Discord com o status
+   - Notificar no canal de SQUAD do Discord (Thread interna) com o status.
 4. Se backlog desorganizado: usar skill REPRIORITIZE_BACKLOG
 
 ## Como monitorar bloqueios

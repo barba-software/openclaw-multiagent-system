@@ -147,14 +147,17 @@ create_agent() {
     openclaw agents set-identity --workspace "$ws" --from-identity 2>/dev/null \
         && ok "identity aplicada: $agent_id" \
         || echo "  ⚠ identity: $agent_id falhou — verifique $ws/IDENTITY.md"
-    # Bind ao canal Discord — somente o product agent escuta o canal.
-    # IMPORTANTE: Para evitar confusão, NÃO adicione o Lead Global (Main) neste canal.
-    # O Product Agent operará em modo "Escuta Ativa" (sem necessidade de menção).
+    # Bind ao canal Discord
     if [ "$role" = "product" ]; then
+        # Product agent escuta o canal principal (Escuta Ativa)
         openclaw agents bind --agent "$agent_id" --bind "discord:$DISCORD_CHANNEL"
-        ok "bind: $agent_id → discord:$DISCORD_CHANNEL"
+        ok "bind: $agent_id → discord:$DISCORD_CHANNEL (main channel)"
     else
-        ok "sem bind: $agent_id (acionado internamente)"
+        # Agentes técnicos escutam o canal de squad (thread interna)
+        # Isso permite que o usuário veja o processo técnico sem poluir o GERAL.
+        local squad_thread="${DISCORD_CHANNEL}-squad"
+        openclaw agents bind --agent "$agent_id" --bind "discord:$squad_thread"
+        ok "bind: $agent_id → discord:$squad_thread (squad thread)"
     fi
 }
 # -- Criar cron --
