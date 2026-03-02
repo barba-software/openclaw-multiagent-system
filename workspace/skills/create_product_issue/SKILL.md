@@ -29,7 +29,8 @@ gh issue create \
   --repo {repo} \
   --title "{tipo}: {título claro e objetivo}" \
   --body "{corpo abaixo}" \
-  --label "{tipo},{prioridade}"
+  --label "{tipo},{prioridade}" \
+  --project "{project} Board"
 ```
 
 **Corpo obrigatório:**

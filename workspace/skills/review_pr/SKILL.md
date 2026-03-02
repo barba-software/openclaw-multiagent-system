@@ -33,6 +33,14 @@ gh pr list --repo {repo} --label review --state open --json number,title,created
 gh pr checkout {numero_pr} --repo {repo}
 ```
 
+### 3b. Identificar a Issue vinculada
+O `state_engine` precisa do número da **Issue** (ex: #15), não do PR. Procure no corpo do PR por "Closes #XX" ou "Fixes #XX":
+
+```bash
+ISSUE_NUM=$(gh pr view {numero_pr} --repo {repo} --json body --jq '.body | grep -oE "Closes #[0-9]+" | cut -d# -f2')
+echo "Issue vinculada: $ISSUE_NUM"
+```
+
 ### 3. Checklist de Revisão
 
 #### Funcionalidade
@@ -74,7 +82,7 @@ gh pr review {numero_pr} --repo {repo} --approve \
 Disparar transição e notificar:
 
 ```bash
-$HOME/.openclaw/workspace/scripts/state_engine.sh {project} {repo} {issue_numero} pr_approved
+$HOME/.openclaw/workspace/scripts/state_engine.sh {project} {repo} $ISSUE_NUM pr_approved
 ```
 - A skill ou script de aprovação deve postar no Discord: `✅ PR #{numero_pr} aprovada`
 
@@ -88,7 +96,7 @@ gh pr review {numero_pr} --repo {repo} --request-changes \
 Bloquear a issue no State Engine:
 
 ```bash
-$HOME/.openclaw/workspace/scripts/state_engine.sh {project} {repo} {issue_numero} blocked "PR precisa de ajustes: {resumo_das_mudanças}"
+$HOME/.openclaw/workspace/scripts/state_engine.sh {project} {repo} $ISSUE_NUM blocked "PR precisa de ajustes: {resumo_das_mudanças}"
 ```
 
 - Notificar no Discord: `🔁 PR #{numero_pr} precisa de ajustes: <resumo>`
@@ -102,10 +110,9 @@ gh pr merge {numero_pr} --repo {repo} --squash --delete-branch
 ### 6. Disparar conclusão
 
 ```bash
-$HOME/.openclaw/workspace/scripts/state_engine.sh {project} {repo} {issue_numero} pr_merged
+$HOME/.openclaw/workspace/scripts/state_engine.sh {project} {repo} $ISSUE_NUM pr_merged
 ```
-
-- Notificar no Discord: `✅ PR #{numero_pr} mergeada — Issue #{issue_numero} concluída: <url>`
+- Notificar no Discord: `✅ PR #{numero_pr} mergeada — Issue #$ISSUE_NUM concluída: <url>`
 
 O state-engine se encarrega de: liberar capacidade do developer, atualizar estado para done, fechar a Issue e mover o card.
 

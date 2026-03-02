@@ -45,8 +45,7 @@ if [ -n "$EXISTING" ]; then
   echo "⚠ Issues similares encontradas:"
   echo "$EXISTING"
   echo ""
-  echo "  Continue mesmo assim? (ctrl+c para cancelar, enter para continuar)"
-  read -r _confirm || true
+  echo "  (Prosseguindo automaticamente...)"
 fi
 
 # ── Criar Issue ───────────────────────────────────────────────────────────────
@@ -56,6 +55,7 @@ ISSUE_URL=$(gh issue create \
   --title "$TITLE" \
   --body "$BODY" \
   --label "$LABELS" \
+  --project "$PROJECT Board" \
   2>/dev/null)
 
 ISSUE_NUM=$(echo "$ISSUE_URL" | grep -oE '[0-9]+$')

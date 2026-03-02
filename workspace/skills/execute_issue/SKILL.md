@@ -20,16 +20,17 @@ Usar uma destas fontes em ordem de prioridade:
 
 **Fonte primária — state.json:**
 ```bash
-cat ~/.openclaw/workspace/projects/{project}/state.json | jq -r '.issues | to_entries[] | select(.value.assigned_agent == "{nome_do_agente}" and .value.status == "in_progress") | .key'
+cat ~/.openclaw/workspace/projects/{project}/state.json | jq -r --arg a "{nome_do_agente}" '.issues | to_entries[] | select(.value.assigned_agent == $a and (.value.status == "in_progress" or .value.status == "blocked")) | .key'
 ```
 
 **Fallback — label no GitHub:**
 ```bash
 gh issue list --repo {repo} --label in_progress --state open --json number --jq '.[].number'
+gh issue list --repo {repo} --label blocked --state open --json number --jq '.[].number'
 ```
 
 Verificar se a issue está com o assignee interno correto no state.json.
-Se não estiver atribuída: aguardar — não iniciar sem atribuição formal do state-engine.
+Se a issue estiver em `blocked`, significa que o Revisor solicitou mudanças. Vá direto para a seção **Processando feedback de Review** abaixo.
 
 ### 2. Ler issue completa
 

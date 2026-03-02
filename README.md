@@ -58,14 +58,20 @@ sequenceDiagram
 
 ## ✨ Principais Funcionalidades
 
-1. **Separação Abstrata de Arquivos (`De-coupled Architecture`):**
-   - `HEARTBEAT.md`: Atua apenas como "Despertador temporal" ou Gatilho. Nenhum comando sensível vive aqui.
-   - `AGENTS.md`: Define a "Inteligência" e a lógica humana / processual de cada cargo.
-   - `SKILLS.md` & `scripts/*.sh`: Segura a "Força Bruta" e as integrações (Scripts, GH CLI, processamentos JQ, etc), impedindo que o LLM "alucine" comandos.
-2. **Motor de Estado Confiável (`state_engine.sh`):**
-   - Transita as tarefas no `state.json` do projeto, mantendo os agentes alinhados sobre qual é a pauta real limitando o processamento fantasma, servindo como o Core Source of Truth no lugar de usar APIs voláteis.
-3. **Identidade Estrita de Versionamento:**
-   - Prevenções para que commits e features não vazem o tracking (ex: Developer assinando os commits como `alfred-ai-developer` em um ambiente clonado apartado).
+1. **Arquitetura Desacoplada e Segura:**
+   - `HEARTBEAT.md`: Atua apenas como "Despertador" temporal. Nenhum comando sensível vive aqui.
+   - `AGENTS.md`: Define a lógica processual e comportamental de cada cargo.
+   - `SKILLS.md` & `scripts/*.sh`: Segura a "Força Bruta" e as integrações (Scripts, GH CLI, JQ), impedindo alucinações de comandos.
+2. **Motor de Estado e Orquestração (`state_engine.sh`):**
+   - Transita tarefas no `state.json`, garantindo que os agentes saibam exatamente qual é a pauta real.
+   - **Sincronização Automática:** Gerencia labels de status (`inbox`, `in_progress`, etc) e de responsabilidade (`agent:product`, `agent:developer`, `agent:reviewer`) tanto na Issue quanto no PR associado.
+3. **Automação de Board e Discord:**
+   - **Workflow de Board Robusto:** Integração nativa com GitHub Projects. Issues são criadas diretamente no board via flag `--project` e sincronizadas via GraphQL via `automation.sh`.
+   - **Interação Estabilizada:** Otimizações no provisionamento evitam reboots desnecessários, resolvendo o erro `Unknown Interaction` no Discord.
+   - **Modo Escuta Ativa:** Agentes de produto operam em modo passivo nos canais, reagindo a demandas sem necessidade de menção `@nome`.
+4. **Identidade e Rastreabilidade:**
+   - Prevenções para que commits e features não vazem o tracking (ex: Developer assina commits como `alfred-ai-developer`).
+   - Ciclo de feedback fechado: Desenvolvedores são alertados e reatribuídos automaticamente quando o review solicita mudanças (`blocked` status).
 
 ## 🚀 Como Utilizar e Provisionar
 

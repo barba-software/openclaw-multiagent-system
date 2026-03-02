@@ -110,7 +110,7 @@ rm -f "$_TMP_ITEMS"
 
 if [ -z "$ITEM_ID" ]; then
   echo "  ➕ Issue não está no board — adicionando..."
-  gh project item-add "$BOARD_NUMBER" --owner "$OWNER" --url "$ISSUE_URL" &>/dev/null || true
+  gh project item-add "$BOARD_NUMBER" --owner "$OWNER" --url "$ISSUE_URL" >/dev/null
   sleep 1
   _TMP_ITEMS2=$(mktemp)
   gh api graphql -f query="
@@ -123,7 +123,7 @@ if [ -z "$ITEM_ID" ]; then
         }
       }
     }
-  " 2>/dev/null > "$_TMP_ITEMS2" || true
+  " > "$_TMP_ITEMS2"
   ITEM_ID=$(jq -r     ".data.node.items.nodes[] | select(.content.url == \"$ISSUE_URL\") | .id"     "$_TMP_ITEMS2" 2>/dev/null | head -1 || true)
   rm -f "$_TMP_ITEMS2"
   if [ -z "$ITEM_ID" ]; then
@@ -169,6 +169,6 @@ gh project item-edit \
   --id "$ITEM_ID" \
   --field-id "$STATUS_FIELD_ID" \
   --single-select-option-id "$OPTION_ID" \
-  --project-id "$BOARD_ID" &>/dev/null
+  --project-id "$BOARD_ID" >/dev/null
 
 echo "✔ Issue #$ISSUE_NUMBER → $NEW_STATUS (board: $BOARD_NAME)"

@@ -21,7 +21,11 @@ Você precisará de 3 informações essenciais do usuário. Se alguma delas falt
 - **Repositório GitHub** (owner/repo. Ex: `barba-software/quemresolve-api`)
 - **Canal do Discord** associado (apenas o nome, sem o `#`)
 
-### 2. Auto-Instalar a Arquitetura Global
+### 2. Confirmação Imediata (Prevenção de Timeout)
+Antes de rodar qualquer comando pesado, você DEVE responder ao usuário no Discord:
+> "🚀 Entendido! Iniciando o provisionamento do esquadrão para o projeto **{nome_do_projeto}**. Isso pode levar alguns instantes..."
+
+### 3. Auto-Instalar a Arquitetura Global
 Execute o download da estrutura OpenClaw e invoque o script instalador de forma automatizada (non-interactive mode), repassando os parâmetros capturados:
 
 ```bash

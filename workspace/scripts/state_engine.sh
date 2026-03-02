@@ -292,37 +292,76 @@ get_issue_pr() {
 # Mapeia status interno → label no GitHub
 sync_label() {
   local issue="$1" new_status="$2"
-  local all_labels="inbox in_progress review blocked done"
+  local all_status_labels="inbox in_progress review blocked done"
+  local all_agent_labels="agent:product agent:developer agent:reviewer"
+  
   local status_label
+  local agent_label=""
+
   case "$new_status" in
-    inbox)       status_label="inbox" ;;
-    in_progress) status_label="in_progress" ;;
-    review)      status_label="review" ;;
-    blocked)     status_label="blocked" ;;
-    done)        status_label="done" ;;
-    approved)    status_label="review" ;;
-    *)           return 0 ;;
+    inbox)
+      status_label="inbox"
+      agent_label="agent:product"
+      ;;
+    in_progress)
+      status_label="in_progress"
+      agent_label="agent:developer"
+      ;;
+    review)
+      status_label="review"
+      agent_label="agent:reviewer"
+      ;;
+    blocked)
+      status_label="blocked"
+      # No bloqueio, mantemos a label do agente que estava trabalhando nela
+      ;;
+    done)
+      status_label="done"
+      # No done, podemos remover todas as labels de agente ou manter a última
+      ;;
+    approved)
+      status_label="review"
+      agent_label="agent:reviewer"
+      ;;
+    *)
+      return 0
+      ;;
   esac
 
   local pr
   pr=$(get_issue_pr)
 
-  # Remover todas as labels de status e aplicar a nova na ISSUE
-  for lbl in $all_labels; do
+  # 1. Sincronizar ISSUE
+  # Remover labels de status anteriores
+  for lbl in $all_status_labels; do
     gh issue edit "$issue" --repo "$REPO" --remove-label "$lbl" &>/dev/null || true
   done
+  # Se houver uma nova label de agente definida, remover as outras e aplicar a nova
+  if [ -n "$agent_label" ]; then
+    for lbl in $all_agent_labels; do
+      gh issue edit "$issue" --repo "$REPO" --remove-label "$lbl" &>/dev/null || true
+    done
+    gh issue edit "$issue" --repo "$REPO" --add-label "$agent_label" &>/dev/null || true
+  fi
+  # Aplicar label de status
   gh issue edit "$issue" --repo "$REPO" --add-label "$status_label" &>/dev/null \
-    && audit "sync_label_issue" "issue=$issue label=$status_label" \
-    || echo "  ⚠ label $status_label não aplicada na Issue #$issue"
+    && audit "sync_label_issue" "issue=$issue status=$status_label agent=$agent_label" \
+    || echo "  ⚠ falha ao sincronizar labels na Issue #$issue"
 
-  # Se houver um PR associado, aplicar a label no PR também
+  # 2. Sincronizar PR (se existir)
   if [ -n "$pr" ]; then
-    for lbl in $all_labels; do
+    for lbl in $all_status_labels; do
       gh pr edit "$pr" --repo "$REPO" --remove-label "$lbl" &>/dev/null || true
     done
+    if [ -n "$agent_label" ]; then
+      for lbl in $all_agent_labels; do
+        gh pr edit "$pr" --repo "$REPO" --remove-label "$lbl" &>/dev/null || true
+      done
+      gh pr edit "$pr" --repo "$REPO" --add-label "$agent_label" &>/dev/null || true
+    fi
     gh pr edit "$pr" --repo "$REPO" --add-label "$status_label" &>/dev/null \
-      && audit "sync_label_pr" "pr=$pr label=$status_label" \
-      || echo "  ⚠ label $status_label não aplicada no PR #$pr"
+      && audit "sync_label_pr" "pr=$pr status=$status_label agent=$agent_label" \
+      || echo "  ⚠ falha ao sincronizar labels no PR #$pr"
   fi
 }
 
@@ -419,7 +458,7 @@ case $EVENT in
       
       # Notificar o developer sobre o feedback
       local dev_id="$PROJECT-$last_dev"
-      local dev_msg="ALERTA: PR da Issue #$ISSUE precisa de ajustes. Veja os comentários no GitHub e use a skill EXECUTE_ISSUE."
+      local dev_msg="🚨 AJUSTES NECESSÁRIOS: A PR da Issue #$ISSUE foi devolvida para você. Veja os comentários no GitHub e utilize a skill EXECUTE_ISSUE para resolver."
       openclaw send --agent "$dev_id" --message "$dev_msg" &>/dev/null \
         || echo "  ⚠ Não foi possível notificar $dev_id"
     else
@@ -443,10 +482,12 @@ case $EVENT in
     # Se METADATA contiver nome de developer válido, reatribui; senão, auto_assign
     if [ -n "$METADATA" ] && jq -e --arg a "$METADATA" '.agents[$a].role == "developer"' "$STATE_FILE" &>/dev/null 2>&1; then
       update_issue "in_progress" "$METADATA"
+      sync_label "$ISSUE" "in_progress"
       call_automation "In Progress"
       echo "✔ Issue #$ISSUE desbloqueada → reatribuída para $METADATA"
     else
       assign_by_capacity
+      # sync_label já é chamado dentro de assign_by_capacity
       call_automation "In Progress"
       echo "✔ Issue #$ISSUE desbloqueada → developer reatribuído por capacidade"
     fi

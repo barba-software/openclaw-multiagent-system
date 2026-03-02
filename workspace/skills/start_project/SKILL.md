@@ -17,14 +17,11 @@ description: "Inicia um novo projeto dentro do sistema OpenClaw, criando toda a 
 
 Você precisa de três informações antes de começar:
 
-| Parâmetro | Exemplo                              | Observação                     |
-| --------- | ------------------------------------ | ------------------------------ |
-| `project` | `quemresolve`                        | slug sem espaços, lowercase    |
-| `repo`    | `barba-software/quemresolve-backend` | formato `owner/repo`           |
-| `channel` | `quemresolvebackend`                 | nome do canal Discord, sem `#` |
-
 Se algum estiver faltando, pergunte ao usuário antes de continuar.
 Normalize o `channel`: remova o `#` caso o usuário tenha passado com ele.
+
+**IMPORTANTE (Prevenção de Timeout):**
+Assim que validar os parâmetros, poste IMEDIATAMENTE a primeira mensagem no canal (Passo 2) avisando que o provisionamento começou. Isso evita o erro de "Unknown Interaction" no Discord.
 
 O script é idempotente, então mesmo que o projeto já exista, ele pode ser reexecutado sem causar erros — apenas confirme os parâmetros e siga para o próximo passo.
 

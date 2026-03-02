@@ -28,9 +28,14 @@ OWNER=$(echo "$REPO" | cut -d/ -f1)
 BASE_DIR="$HOME/.openclaw/workspace/projects/$PROJECT"
 AGENT_WS_BASE="$BASE_DIR/agents"
 REGISTRY="$HOME/.openclaw/workspace/registry.json"
-LOCAL_AGENTS_DIR="$(dirname "$0")/../../agents"
+SCRIPTS_DIR="$HOME/.openclaw/workspace/scripts"
+LOCAL_AGENTS_DIR="$HOME/.openclaw/workspace/agents"
 NOW=$(date -Iseconds)
 CRONS_PENDING=0
+
+# Garantir que os scripts auxiliares sejam executáveis
+chmod +x "$SCRIPTS_DIR"/*.sh 2>/dev/null || true
+
 echo "🚀 Provisionando projeto: $PROJECT"
 echo "   Repo:    $REPO"
 echo "   Discord: #$DISCORD_CHANNEL"
@@ -142,8 +147,9 @@ create_agent() {
     openclaw agents set-identity --workspace "$ws" --from-identity 2>/dev/null \
         && ok "identity aplicada: $agent_id" \
         || echo "  ⚠ identity: $agent_id falhou — verifique $ws/IDENTITY.md"
-    # Bind ao canal Discord — somente o product agent escuta o canal
-    # developer, reviewer e lead são acionados internamente pelo state-engine
+    # Bind ao canal Discord — somente o product agent escuta o canal.
+    # IMPORTANTE: Para evitar confusão, NÃO adicione o Lead Global (Main) neste canal.
+    # O Product Agent operará em modo "Escuta Ativa" (sem necessidade de menção).
     if [ "$role" = "product" ]; then
         openclaw agents bind --agent "$agent_id" --bind "discord:$DISCORD_CHANNEL"
         ok "bind: $agent_id → discord:$DISCORD_CHANNEL"
