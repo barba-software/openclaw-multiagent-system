@@ -152,10 +152,14 @@ create_agent() {
         # Product agent escuta o canal principal (Escuta Ativa)
         openclaw agents bind --agent "$agent_id" --bind "discord:$DISCORD_CHANNEL"
         ok "bind: $agent_id → discord:$DISCORD_CHANNEL (main channel)"
+    elif [ "$role" = "lead" ]; then
+        # Lead agent escuta sua própria thread exclusiva
+        local lead_thread="lead"
+        openclaw agents bind --agent "$agent_id" --bind "discord:$lead_thread"
+        ok "bind: $agent_id → discord:$lead_thread (lead thread)"
     else
-        # Agentes técnicos escutam o canal de squad (thread interna)
-        # Isso permite que o usuário veja o processo técnico sem poluir o GERAL.
-        local squad_thread="${DISCORD_CHANNEL}-squad"
+        # Developer e Reviewer escutam a thread de squad (técnica)
+        local squad_thread="squad"
         openclaw agents bind --agent "$agent_id" --bind "discord:$squad_thread"
         ok "bind: $agent_id → discord:$squad_thread (squad thread)"
     fi

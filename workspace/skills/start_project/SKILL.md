@@ -25,17 +25,23 @@ Assim que validar os parâmetros, poste IMEDIATAMENTE a primeira mensagem no can
 
 O script é idempotente, então mesmo que o projeto já exista, ele pode ser reexecutado sem causar erros — apenas confirme os parâmetros e siga para o próximo passo.
 
-### 2. Criar o canal Discord
+### 2. Criar o canal Discord e Threads
 
-Valide se o canal `channel` ja existe, caso não exista crie o canal de texto `channel` no servidor Discord do projeto. Se o canal já existir, apenas confirme que é o canal correto para este projeto.
+Valide se o canal `channel` já existe, caso não exista crie o canal de texto `channel` no servidor Discord do projeto.
 
-Após criar (ou confirmar que já existe), poste a seguinte mensagem de boas-vindas no canal:
+**Automação de Threads (Elite Squad):**
+Dentro do canal `{channel}`, crie IMEDIATAMENTE as seguintes threads públicas:
+- `squad` — Para comunicação técnica (Developer & Reviewer).
+- `lead` — Para gestão, standups e alertas do Lead.
+
+Após criar o canal e as threads, poste a seguinte mensagem de boas-vindas no canal PRINCIPAL:
 
 ```
 👋 Bem-vindo ao projeto **{project}**!
 
 📦 Repositório: https://github.com/{repo}
 🤖 Squad: Product · Developer · Reviewer · Lead
+🧵 Canais: #squad (técnico) | #lead (gestão)
 🔗 Board: será criado automaticamente pelo provision
 
 A squad está sendo configurada. Em instantes estaremos operacionais.

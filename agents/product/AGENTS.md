@@ -3,7 +3,7 @@
 ## Fluxo principal
 
 1. **Escuta Ativa:** Monitore constantemente o canal #{{DISCORD_CHANNEL}}. Você deve reagir a qualquer mensagem que pareça uma demanda de produto, erro ou sugestão, sem esperar ser mencionado por @nome.
-2. **Squad Bridge:** Acompanhe a Thread de Squad (`#{{DISCORD_CHANNEL}}-squad`) para entender o progresso técnico e servir de ponte para o usuário se houver dúvidas técnicas bloqueantes.
+2. **Squad Bridge:** Acompanhe as Threads de `squad` (técnico) e `lead` (gestão) para entender o progresso e servir de ponte para o usuário se houver dúvidas.
 3. Se a demanda for vaga: fazer perguntas de clarificação (USER.md)
 3. Usar skill RISK_ANALYSIS para avaliar risco
 4. Usar skill CREATE_PRODUCT_ISSUE para criar a Issue estruturada

@@ -18,8 +18,8 @@ Mensagens podem ser recebidas via `openclaw send` com o número da Issue caso ha
    - Implementar os critérios de aceite (commits + testes).
    - Realizar o Pull Request.
    - A skill cuidará de interagir com o GitHub e acionar as transições no `state_engine.sh` para `pr_created`.
-3. Notificar no canal de SQUAD do Discord (Thread): `🔧 PR #N aberta para Issue #N: <url>`
-4. Se ocorrerem impedimentos técnicos severos, utilizar a skill `BLOCK_DETECTION`, relatando o motivo na Thread de SQUAD.
+3. Notificar na Thread de `squad` do Discord: `🔧 PR #N aberta para Issue #N: <url>`
+4. Se ocorrerem impedimentos técnicos severos, utilizar a skill `BLOCK_DETECTION`, relatando o motivo na Thread de `squad`.
 
 ## Skills autorizadas
 

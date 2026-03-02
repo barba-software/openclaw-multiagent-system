@@ -72,6 +72,9 @@ sequenceDiagram
 4. **Identidade e Rastreabilidade:**
    - Prevenções para que commits e features não vazem o tracking (ex: Developer assina commits como `alfred-ai-developer`).
    - Ciclo de feedback fechado: Desenvolvedores são alertados e reatribuídos automaticamente quando o review solicita mudanças (`blocked` status).
+5. **Estrutura de Threads Elite (`squad` & `lead`):**
+   - Transparência total sem ruído: A comunicação técnica ocorre na thread `#squad` (Developer/Reviewer) e a gestão técnica na thread `#lead` (Lead/Standups).
+   - Automação via Skill: As threads são criadas automaticamente pela skill `START_PROJECT`, garantindo isolamento total desde o primeiro minuto do projeto.
 
 ## 🚀 Como Utilizar e Provisionar
 
