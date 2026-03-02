@@ -72,19 +72,22 @@ echo "Issue vinculada: $ISSUE_NUM"
 - [ ] Sem N+1 queries
 - [ ] Operações custosas com cache quando faz sentido
 
-### 4a. Aprovação
+### 4a. Validação Técnica (Aprovação)
+
+Se o código estiver de acordo com todos os requisitos instrumentados, registre a validação:
 
 ```bash
-gh pr review {numero_pr} --repo {repo} --approve \
-  --body "✅ Aprovado. Critérios de aceite atendidos."
+gh pr review {numero_pr} --repo {repo} --comment \
+  --body "✅ Validado tecnicamente por {{NAME}}. Todos os critérios de aceite foram atendidos e os testes passaram localmente. @User, o PR está pronto para sua revisão final e merge."
 ```
 
-Disparar transição e notificar:
+Disparar transição de estado para `approved`:
 
 ```bash
-$HOME/.openclaw/workspace/scripts/state_engine.sh {project} {repo} $ISSUE_NUM pr_approved
+$HOME/.openclaw/workspace/scripts/state_engine.sh {project} {repo} $ISSUE_NUM approved
 ```
-- A skill ou script de aprovação deve postar no Discord: `✅ PR #{numero_pr} aprovada`
+
+- Notificar na Thread de `squad`: `✅ PR #{numero_pr} validada tecnicamente. Aguardando aprovação final do usuário.`
 
 ### 4b. Solicitação de mudanças
 
@@ -99,28 +102,17 @@ Bloquear a issue no State Engine:
 $HOME/.openclaw/workspace/scripts/state_engine.sh {project} {repo} $ISSUE_NUM blocked "PR precisa de ajustes: {resumo_das_mudanças}"
 ```
 
-- Notificar no Discord: `🔁 PR #{numero_pr} precisa de ajustes: <resumo>`
+- Notificar na Thread de `squad`: 🔁 PR #{numero_pr} precisa de ajustes: <resumo>
 
-### 5. Merge (após aprovação)
+---
 
-```bash
-gh pr merge {numero_pr} --repo {repo} --squash --delete-branch
-```
-
-### 6. Disparar conclusão
-
-```bash
-$HOME/.openclaw/workspace/scripts/state_engine.sh {project} {repo} $ISSUE_NUM pr_merged
-```
-- Notificar no Discord: `✅ PR #{numero_pr} mergeada — Issue #$ISSUE_NUM concluída: <url>`
-
-O state-engine se encarrega de: liberar capacidade do developer, atualizar estado para done, fechar a Issue e mover o card.
+## Observação sobre o Merge
+O Reviewer Agent **NUNCA** realiza o merge. Após a validação técnica (estado `approved`), o ciclo de vida da issue será encerrado pelo sistema assim que o usuário realizar o merge manual no GitHub (detectado via reconciliação de estado).
 
 ---
 
 ## Regras Invioláveis
 
-- ❌ Nunca mergear sem aprovação explícita
-- ❌ Nunca mergear se testes estão falhando
+- ❌ Nunca realizar merge de Pull Requests
 - ❌ Nunca discutir código fora do contexto do PR
 - ❌ Nunca fechar Issue manualmente
