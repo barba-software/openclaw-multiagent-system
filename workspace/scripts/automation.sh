@@ -1,60 +1,174 @@
 #!/usr/bin/env bash
 
-PROJECT=$1
-REPO=$2
-ISSUE_NUMBER=$3
-NEW_STATUS=$4
+# =============================================================================
+# automation.sh — Sincronização com GitHub Projects
+# =============================================================================
+# Uso: automation.sh <project> <repo> <issue_number> <status>
+#
+# Responsabilidade: APENAS sincronizar o board do GitHub com o estado
+# que o state-engine decidiu. Nunca toma decisões de negócio.
+# =============================================================================
 
-OWNER=$(echo $REPO | cut -d/ -f1)
+set -euo pipefail
+
+PROJECT="${1:-}"
+REPO="${2:-}"
+ISSUE_NUMBER="${3:-}"
+NEW_STATUS="${4:-}"
+
+if [ -z "$PROJECT" ] || [ -z "$REPO" ] || [ -z "$ISSUE_NUMBER" ] || [ -z "$NEW_STATUS" ]; then
+  echo "Uso: automation.sh <project> <repo> <issue_number> <new_status>"
+  echo "Status válidos: Inbox | In Progress | Review | Blocked | Done"
+  exit 1
+fi
+
+# ── Dependências ──────────────────────────────────────────────────────────────
+if ! command -v gh &>/dev/null; then
+  echo "❌ GitHub CLI (gh) não encontrado"
+  exit 1
+fi
+
+if ! command -v jq &>/dev/null; then
+  echo "❌ jq não encontrado"
+  exit 1
+fi
+
+OWNER=$(echo "$REPO" | cut -d/ -f1)
 BOARD_NAME="$PROJECT Board"
 
-# ==============================
-# Obter Board ID
-# ==============================
-
-BOARD_ID=$(gh project list --owner "$OWNER" --format json | jq -r ".[] | select(.title==\"$BOARD_NAME\") | .id")
-
-if [ -z "$BOARD_ID" ]; then
-  echo "❌ Board não encontrado"
+# ── Verificar autenticação ────────────────────────────────────────────────────
+if ! gh auth status &>/dev/null; then
+  echo "❌ GitHub CLI não autenticado. Execute: gh auth login"
   exit 1
 fi
 
-# ==============================
-# Obter Item ID da Issue
-# ==============================
+# ── Obter Board via GraphQL (gh project list --owner falha sem escopo interativo) ──
+GH_LOGIN=$(gh api user --jq .login 2>/dev/null || true)
 
-ISSUE_URL=$(gh issue view $ISSUE_NUMBER --repo "$REPO" --json url -q ".url")
+_get_owner_node_id() {
+  local id
+  id=$(gh api "orgs/$OWNER" --jq .node_id 2>/dev/null) && echo "$id" && return
+  gh api "users/$OWNER" --jq .node_id 2>/dev/null || true
+}
 
-ITEM_ID=$(gh project item-list "$BOARD_ID" --format json | jq -r ".items[] | select(.content.url==\"$ISSUE_URL\") | .id")
-
-# Se item não existir → adicionar
-if [ -z "$ITEM_ID" ]; then
-  echo "Adicionando Issue ao board..."
-  gh project item-add "$BOARD_ID" --url "$ISSUE_URL" > /dev/null
-  ITEM_ID=$(gh project item-list "$BOARD_ID" --format json | jq -r ".items[] | select(.content.url==\"$ISSUE_URL\") | .id")
+OWNER_NODE_ID=$(_get_owner_node_id)
+if [ -z "$OWNER_NODE_ID" ]; then
+  echo "❌ Não foi possível obter node_id do owner $OWNER"
+  exit 1
 fi
 
-# ==============================
-# Obter Status Field ID
-# ==============================
+_TMP_BOARD=$(mktemp)
+gh api graphql -f query="
+  query {
+    node(id: \"$OWNER_NODE_ID\") {
+      ... on User         { projectsV2(first:20) { nodes { id number title closed } } }
+      ... on Organization { projectsV2(first:20) { nodes { id number title closed } } }
+    }
+  }
+" 2>/dev/null > "$_TMP_BOARD" || true
 
-STATUS_FIELD_ID=$(gh project field-list "$BOARD_ID" --format json | jq -r ".[] | select(.name==\"Status\") | .id")
+BOARD_JSON=$(jq -rc ".data.node.projectsV2.nodes[] | select(.title == \"$BOARD_NAME\" and .closed == false)"   "$_TMP_BOARD" 2>/dev/null | head -1 || true)
+rm -f "$_TMP_BOARD"
 
-# Obter Option ID
-OPTION_ID=$(gh project field-list "$BOARD_ID" --format json | jq -r ".[] | select(.name==\"Status\") | .options[] | select(.name==\"$NEW_STATUS\") | .id")
+if [ -z "$BOARD_JSON" ]; then
+  echo "❌ Board '$BOARD_NAME' não encontrado para owner '$OWNER'"
+  echo "  Crie o board com: provision.sh $PROJECT $REPO <discord_channel>"
+  exit 1
+fi
+
+BOARD_ID=$(echo "$BOARD_JSON" | jq -r '.id')
+BOARD_NUMBER=$(echo "$BOARD_JSON" | jq -r '.number')
+
+# ── Obter URL da Issue ─────────────────────────────────────────────────────────
+ISSUE_URL=$(gh issue view "$ISSUE_NUMBER" --repo "$REPO" --json url -q ".url" 2>/dev/null || true)
+if [ -z "$ISSUE_URL" ]; then
+  echo "❌ Issue #$ISSUE_NUMBER não encontrada no repo $REPO"
+  exit 1
+fi
+
+# ── Obter ou criar Item no Board via GraphQL ──────────────────────────────────
+_TMP_ITEMS=$(mktemp)
+gh api graphql -f query="
+  query {
+    node(id: \"$BOARD_ID\") {
+      ... on ProjectV2 {
+        items(first: 100) {
+          nodes {
+            id
+            content {
+              ... on Issue { url number }
+            }
+          }
+        }
+      }
+    }
+  }
+" 2>/dev/null > "$_TMP_ITEMS" || true
+
+ITEM_ID=$(jq -r   ".data.node.items.nodes[] | select(.content.url == \"$ISSUE_URL\") | .id"   "$_TMP_ITEMS" 2>/dev/null | head -1 || true)
+rm -f "$_TMP_ITEMS"
+
+if [ -z "$ITEM_ID" ]; then
+  echo "  ➕ Issue não está no board — adicionando..."
+  gh project item-add "$BOARD_NUMBER" --owner "$OWNER" --url "$ISSUE_URL" &>/dev/null || true
+  sleep 1
+  _TMP_ITEMS2=$(mktemp)
+  gh api graphql -f query="
+    query {
+      node(id: \"$BOARD_ID\") {
+        ... on ProjectV2 {
+          items(first: 100) {
+            nodes { id content { ... on Issue { url } } }
+          }
+        }
+      }
+    }
+  " 2>/dev/null > "$_TMP_ITEMS2" || true
+  ITEM_ID=$(jq -r     ".data.node.items.nodes[] | select(.content.url == \"$ISSUE_URL\") | .id"     "$_TMP_ITEMS2" 2>/dev/null | head -1 || true)
+  rm -f "$_TMP_ITEMS2"
+  if [ -z "$ITEM_ID" ]; then
+    echo "❌ Falha ao obter item do board após adicionar"
+    exit 1
+  fi
+fi
+
+# ── Obter Status Field ID e Option ID via GraphQL ─────────────────────────────
+_TMP_FIELDS=$(mktemp)
+gh api graphql -f query="
+  query {
+    node(id: \"$BOARD_ID\") {
+      ... on ProjectV2 {
+        fields(first: 20) {
+          nodes {
+            ... on ProjectV2SingleSelectField { id name options { id name } }
+          }
+        }
+      }
+    }
+  }
+" 2>/dev/null > "$_TMP_FIELDS" || true
+
+STATUS_FIELD_ID=$(jq -r   '.data.node.fields.nodes[] | select(.name == "Status") | .id'   "$_TMP_FIELDS" 2>/dev/null || true)
+
+OPTION_ID=$(jq -r   ".data.node.fields.nodes[] | select(.name == \"Status\") | .options[] | select(.name == \"$NEW_STATUS\") | .id"   "$_TMP_FIELDS" 2>/dev/null | head -1 || true)
+rm -f "$_TMP_FIELDS"
+
+if [ -z "$STATUS_FIELD_ID" ]; then
+  echo "❌ Campo 'Status' não encontrado no board"
+  exit 1
+fi
 
 if [ -z "$OPTION_ID" ]; then
-  echo "❌ Status $NEW_STATUS não encontrado"
+  echo "❌ Opção '$NEW_STATUS' não encontrada no campo Status"
+  echo "  Opções esperadas: Inbox | In Progress | Review | Blocked | Done"
   exit 1
 fi
 
-# ==============================
-# Atualizar Status
-# ==============================
-
+# ── Atualizar Status (usa BOARD_ID global para --project-id) ────────────────────
 gh project item-edit \
   --id "$ITEM_ID" \
   --field-id "$STATUS_FIELD_ID" \
-  --single-select-option-id "$OPTION_ID" > /dev/null
+  --single-select-option-id "$OPTION_ID" \
+  --project-id "$BOARD_ID" &>/dev/null
 
-echo "✔ Issue #$ISSUE_NUMBER movida para $NEW_STATUS"
+echo "✔ Issue #$ISSUE_NUMBER → $NEW_STATUS (board: $BOARD_NAME)"
