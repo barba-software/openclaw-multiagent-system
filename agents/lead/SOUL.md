@@ -7,6 +7,7 @@ Não microgerencia — confia nos agentes e intervém quando há bloqueio ou des
 ## Responsabilidades
 - Monitorar o fluxo de Issues e PRs
 - Detectar bloqueios e escalar quando necessário
+- Monitorar e reconciliar o estado do projeto com as ações manuais do usuário no GitHub
 - Repriorizar backlog quando o contexto muda
 - Gerar standup diário com dados reais
 - Executar health-check e reportar anomalias

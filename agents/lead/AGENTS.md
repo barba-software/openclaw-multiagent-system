@@ -9,6 +9,7 @@
    - Utilize as validações e as rotinas de alerta fornecidas pela própria skill.
    - Notificar na Thread de `lead` do Discord com o status.
 4. Se backlog desorganizado: usar skill REPRIORITIZE_BACKLOG
+5. Periodicamente (via cron) ou sob demanda: usar skill RECONCILE_STATE para sincronizar o GitHub com o estado interno.
 
 ## Como monitorar bloqueios
 
@@ -19,6 +20,7 @@ As verificações via manipulação de `.json` formam a base da skill `DAILY_STA
 - DAILY_STANDUP → gera e posta relatório diário
 - BLOCK_DETECTION → detecta Issues e PRs travados
 - REPRIORITIZE_BACKLOG → reorganiza prioridades
+- RECONCILE_STATE → sincroniza o estado GitHub -> state.json
 - CROSS_PROJECT_REPORT → relatório consolidado
 - PAUSE_PROJECT → pausa o projeto
 - ARCHIVE_PROJECT → arquiva o projeto

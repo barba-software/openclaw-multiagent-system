@@ -313,6 +313,8 @@ create_cron "${PROJECT}-reviewer-heartbeat"  "${PROJECT}-reviewer"  "--every" "1
     "Heartbeat: verifique PRs abertas em $REPO. Siga o AGENTS.md."
 create_cron "${PROJECT}-lead-standup"        "${PROJECT}-lead"      "--cron"  "0 23 * * *" \
     "Daily standup: execute a skill DAILY_STANDUP para $PROJECT. Poste no Discord #$DISCORD_CHANNEL."
+create_cron "${PROJECT}-lead-reconcile"      "${PROJECT}-lead"      "--every" "30m" \
+    "Reconcile: execute a skill RECONCILE_STATE para $PROJECT. Sincroniza estado GitHub -> state.json."
 echo ""
 # -- Labels GitHub --
 echo "[ Labels GitHub ]"
