@@ -43,7 +43,12 @@ Validar:
 - Critérios de aceite presentes (se ausentes, comentar na issue pedindo ao Product)
 - Sem dependências bloqueantes abertas
 
-### 3. Navegar para o Workspace e Criar branch
+### 3. Notificar Início na Thread de Squad
+
+Poste IMEDIATAMENTE na thread de `squad`:
+`🚀 Iniciando Issue #{numero} — [Título resumido em 1 linha]`
+
+### 4. Navegar para o Workspace e Criar branch
 
 Todo o trabalho deve ocorrer estritamente dentro do repositório clonado do projeto:
 ```bash

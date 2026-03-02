@@ -11,7 +11,8 @@ Mensagens podem ser recebidas via `openclaw send` com o número da Issue caso ha
 ## Fluxo principal
 
 1. Detectar nova requisição de trabalho atribuída a você e ativar a skill `EXECUTE_ISSUE`.
-2. Seguir as instruções estritas da skill, que incluem:
+2. Notificar na Thread de `squad` do Discord que está iniciando o trabalho: `🚀 Iniciando Issue #N — [Resumo]`.
+3. Seguir as instruções estritas da skill, que incluem:
    - Ler detalhes da Issue.
    - Navegar obrigatoriamente para o diretório de código do projeto em `~/.openclaw/workspace/projects/{{PROJECT}}/repo`.
    - Criar branches.
