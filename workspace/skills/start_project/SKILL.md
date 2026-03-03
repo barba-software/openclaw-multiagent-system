@@ -15,7 +15,15 @@ description: "Inicia um novo projeto dentro do sistema OpenClaw, criando toda a 
 
 ### 1. Receber e validar os parâmetros
 
-Você precisa de três informações antes de começar:
+Você precisa de quatro informações antes de começar:
+
+- **project** (nome curto do projeto)
+- **repo** (owner/nome-do-repo no GitHub)
+- **channel** (nome do canal principal no Discord)
+- **guildId** (ID numérico do servidor Discord)
+
+> [!IMPORTANT]
+> Verifique se a variável `DISCORD_BOT_TOKEN` está configurada no ambiente do host OpenClaw antes de executar o script. Sem ela, crons e vínculos de canais falharão.
 
 Se algum estiver faltando, pergunte ao usuário antes de continuar.
 Normalize o `channel`: remova o `#` caso o usuário tenha passado com ele.
@@ -27,14 +35,13 @@ O script é idempotente, então mesmo que o projeto já exista, ele pode ser ree
 
 ### 2. Criar o canal Discord e Threads
 
-Valide se o canal `channel` já existe, caso não exista crie o canal de texto `channel` no servidor Discord do projeto.
+Siga esta ordem exata para evitar erros de permissão:
 
-**Automação de Threads (Elite Squad):**
-Dentro do canal `{channel}`, crie IMEDIATAMENTE as seguintes threads públicas:
-- `squad` — Para comunicação técnica (Developer & Reviewer).
-- `lead` — Para gestão, standups e alertas do Lead.
-
-Após criar o canal e as threads, poste a seguinte mensagem de boas-vindas no canal PRINCIPAL:
+1.  **Criar Canal:** Use a ferramenta `create_channel` para criar o canal de texto `{channel}` (se ainda não existir) no servidor `{guildId}`.
+2.  **Criar Threads:** Dentro do NOVO canal `{channel}`, use a ferramenta `create_thread` para criar as seguintes threads públicas:
+    -   `squad` — Para comunicação técnica.
+    -   `lead` — Para gestão e alertas.
+3.  **Postar Mensagem:** No canal PRINCIPAL `{channel}` (não nas threads), poste a mensagem de boas-vindas:
 
 ```
 👋 Bem-vindo ao projeto **{project}**!
@@ -50,7 +57,7 @@ A squad está sendo configurada. Em instantes estaremos operacionais.
 ### 3. Executar o script de provisionamento
 
 ```
-exec("$HOME/.openclaw/workspace/scripts/provision.sh", "{project}", "{repo}", "{channel}")
+exec("$HOME/.openclaw/workspace/scripts/provision.sh", "{project}", "{repo}", "{channel}", "{guildId}")
 ```
 
 Aguarde a conclusão. O script é idempotente — seguro para reexecutar.

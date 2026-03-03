@@ -8,13 +8,15 @@ set -euo pipefail
 
 PROJECT="${1:-}"
 CHANNEL="${2:-}"
+DISCORD_GUILD_ID="${3:-}"
 
-if [ -z "$PROJECT" ] || [ -z "$CHANNEL" ]; then
-    echo "Uso: ./rebind_threads.sh <nome_projeto> <canal_principal_discord>"
-    echo "Exemplo: ./rebind_threads.sh quemresolve quemresolve-geral"
+if [ -z "$PROJECT" ] || [ -z "$CHANNEL" ] || [ -z "$DISCORD_GUILD_ID" ]; then
+    echo "Uso: ./rebind_threads.sh <nome_projeto> <canal_principal_discord> <discord_guild_id>"
+    echo "Exemplo: ./rebind_threads.sh quemresolve quemresolve-geral 123456789"
     exit 1
 fi
 
+export DISCORD_GUILD_ID
 # Normaliza canal
 CHANNEL="${CHANNEL#\#}"
 

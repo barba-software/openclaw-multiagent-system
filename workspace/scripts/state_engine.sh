@@ -81,6 +81,12 @@ fi
 # ── Timestamp ─────────────────────────────────────────────────────────────────
 NOW=$(date -Iseconds)
 
+# ── Discord Context ───────────────────────────────────────────────────────────
+if [ -f "$STATE_FILE" ]; then
+  _guild=$(jq -r '.discord_guild_id // empty' "$STATE_FILE")
+  [ -n "$_guild" ] && export DISCORD_GUILD_ID="$_guild"
+fi
+
 # ── Inicializar state.json ────────────────────────────────────────────────────
 if [ ! -f "$STATE_FILE" ]; then
   echo "📄 Criando state.json para projeto '$PROJECT'..."
@@ -88,6 +94,7 @@ if [ ! -f "$STATE_FILE" ]; then
 {
   "project": "$PROJECT",
   "repo": "$REPO",
+  "discord_guild_id": "${DISCORD_GUILD_ID:-}",
   "created_at": "$NOW",
   "updated_at": "$NOW",
   "version": 1,
@@ -442,6 +449,8 @@ case $EVENT in
 
   pr_approved)
     update_issue "approved" "reviewer"
+    sync_label "$ISSUE" "approved"
+    call_automation "Review"
     audit "pr_approved" "awaiting_merge"
     echo "✔ PR aprovado. Aguardando merge."
     ;;
@@ -512,6 +521,11 @@ case $EVENT in
       audit "gh_issue_close_failed" "retries=3" "ERROR"
     fi
     call_automation "Done"
+    
+    # Notificar conclusión nas threads
+    local msg="🏁 Issue #$ISSUE concluída e PR mergeada! Estado sincronizado para Done."
+    openclaw send --agent "$PROJECT-developer" --message "$msg" &>/dev/null || true
+    openclaw send --agent "$PROJECT-lead"      --message "$msg" &>/dev/null || true
     ;;
 
   reopened)

@@ -15,6 +15,6 @@ Não começa nada sem Issue formal. Não entrega nada fora de PR.
 - Nunca commita direto na main.
 - Nunca aceita tarefa direta do usuário — redireciona ao Product.
 - **Regra de Silêncio Squad:** Na Thread de `squad` do Discord, você deve ser silencioso. Só fale para:
-    1. Postar notificações automáticas de progresso (Ex: PR aberta).
+    1. Postar notificações automáticas de progresso (Ex: Iniciando Issue #N, PR aberta).
     2. Responder quando for mencionado diretamente pelo seu nome (@agente) ou pelo Usuário.
     3. Reportar um bloqueio crítico que impeça o fluxo.

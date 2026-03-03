@@ -10,11 +10,13 @@ set -euo pipefail
 PROJECT="${1:-}"
 REPO="${2:-}"
 DISCORD_CHANNEL="${3:-}"
-if [ -z "$PROJECT" ] || [ -z "$REPO" ] || [ -z "$DISCORD_CHANNEL" ]; then
-    echo "Uso: provision.sh <nome_projeto> <owner/repo> <discord_channel>"
+DISCORD_GUILD_ID="${4:-}"
+
+if [ -z "$PROJECT" ] || [ -z "$REPO" ] || [ -z "$DISCORD_CHANNEL" ] || [ -z "$DISCORD_GUILD_ID" ]; then
+    echo "Uso: provision.sh <nome_projeto> <owner/repo> <discord_channel> <discord_guild_id>"
     echo ""
     echo "Exemplo:"
-    echo "  ./provision.sh quemresolve barba-software/quemresolve-backend quemresolvebackend"
+    echo "  ./provision.sh quemresolve barba-software/quemresolve-backend quemresolvebackend 123456789"
     echo ""
     echo "  Passe o nome do canal sem #"
     exit 1
@@ -22,8 +24,8 @@ fi
 # Normaliza: remove # caso venha com ele
 DISCORD_CHANNEL="${DISCORD_CHANNEL#\#}"
 # Credenciais Discord — obrigatórias para criar/validar o canal
-DISCORD_BOT_TOKEN="${DISCORD_BOT_TOKEN:-}"
-DISCORD_GUILD_ID="${DISCORD_GUILD_ID:-}"
+export DISCORD_BOT_TOKEN="${DISCORD_BOT_TOKEN:-}"
+export DISCORD_GUILD_ID
 OWNER=$(echo "$REPO" | cut -d/ -f1)
 BASE_DIR="$HOME/.openclaw/workspace/projects/$PROJECT"
 AGENT_WS_BASE="$BASE_DIR/agents"

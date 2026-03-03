@@ -36,8 +36,9 @@ echo "🧩 Vamos provisionar um novo esquadrão!"
 read -p "Nome do Projeto (ex: meu-backend): " PROJECT_NAME
 read -p "Repositório GitHub (owner/repo): " GITHUB_REPO
 read -p "Canal do Discord (sem #): " DISCORD_CHANNEL
+read -p "ID do Servidor Discord (Guild ID): " DISCORD_GUILD_ID
 
-if [ -z "$PROJECT_NAME" ] || [ -z "$GITHUB_REPO" ] || [ -z "$DISCORD_CHANNEL" ]; then
+if [ -z "$PROJECT_NAME" ] || [ -z "$GITHUB_REPO" ] || [ -z "$DISCORD_CHANNEL" ] || [ -z "$DISCORD_GUILD_ID" ]; then
     echo "❌ Erro: Todos os dados devem ser preenchidos."
     exit 1
 fi
@@ -53,7 +54,7 @@ cp -R "$INSTALL_DIR/workspace/scripts/"* "$HOME/.openclaw/workspace/scripts/"
 # 5. Executar o Provisionamento (AGENTS, HEARTBEAT, CRONS e BOARD)
 echo "⚙️ Iniciando o provisionamento dos agentes ($PROJECT_NAME)..."
 cd "$INSTALL_DIR/workspace/scripts"
-bash provision.sh "$PROJECT_NAME" "$GITHUB_REPO" "$DISCORD_CHANNEL"
+bash provision.sh "$PROJECT_NAME" "$GITHUB_REPO" "$DISCORD_CHANNEL" "$DISCORD_GUILD_ID"
 
 echo ""
 echo "================================================="
