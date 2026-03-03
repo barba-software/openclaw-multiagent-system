@@ -13,6 +13,9 @@ description: "Inicia um novo projeto dentro do sistema OpenClaw, criando toda a 
 
 ## Workflow
 
+> [!IMPORTANT]
+> Execute todos os passos em ordem, sem pular nenhum sempre, e sempre poste o resultado de cada passo para o usuário.
+
 ### 1. Receber e validar os parâmetros
 
 Você precisa de quatro informações antes de começar:
@@ -56,8 +59,10 @@ A squad está sendo configurada. Em instantes estaremos operacionais.
 
 ### 3. Executar o script de provisionamento
 
-```
-exec("$HOME/.openclaw/workspace/scripts/provision.sh", "{project}", "{repo}", "{channel}", "{guildId}")
+```javascript
+const output = exec("$HOME/.openclaw/workspace/scripts/provision.sh", "{project}", "{repo}", "{channel}", "{guildId}");
+// Importante: Poste o log completo do provision para o usuário revisar.
+message(channel, "LOG DE PROVISIONAMENTO:\n```\n" + output + "\n```");
 ```
 
 Aguarde a conclusão. O script é idempotente — seguro para reexecutar.
@@ -66,10 +71,21 @@ Aguarde a conclusão. O script é idempotente — seguro para reexecutar.
 
 **Se o script falhar:**
 
-- Mostre a saída de erro completa ao usuário
+- Analise o "Doctor Check" no início do log.
+- Verifique se o `openclaw` foi encontrado e se o `DISCORD_BOT_TOKEN` estava presente.
 - Informe qual passo falhou (labels, board, agentes, crons)
-- Não poste mensagem de sucesso no Discord
 - Sugira: `health_check.sh {project}` para diagnóstico
+
+---
+
+## Solução de Problemas (Troubleshooting)
+
+| Sintoma                      | Causa Provável                  | Ação do Agente                       |
+| ---------------------------- | ------------------------------- | ------------------------------------ |
+| Canal não criado             | Permissão ou `guildId` inválido | Valide o ID e convite do Bot         |
+| Crons não aparecem           | `DISCORD_BOT_TOKEN` ausente     | Peça ao usuário para checar a env    |
+| `openclaw` não encontrado    | Path não configurado no host    | Reporte o erro de Doctor ao usuário  |
+| "Unknown Interaction"        | Timeout do Discord              | Reduza o delay entre mensagens       |
 
 **Se o script tiver sucesso:**
 

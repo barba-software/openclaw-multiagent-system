@@ -41,6 +41,43 @@ chmod +x "$SCRIPTS_DIR"/*.sh 2>/dev/null || true
 echo "🚀 Provisionando projeto: $PROJECT"
 echo "   Repo:    $REPO"
 echo "   Discord: #$DISCORD_CHANNEL"
+echo "   Guild:   $DISCORD_GUILD_ID"
+echo ""
+
+# -- Doctor check --
+doctor() {
+    echo "[ Doctor Check ]"
+    local err=0
+    for cmd in gh jq curl; do
+        if command -v "$cmd" &>/dev/null; then ok "$cmd disponível"; else fail "$cmd não encontrado"; err=1; fi
+    done
+    
+    # Busca por openclaw de forma mais robusta
+    if command -v openclaw &>/dev/null; then 
+        ok "openclaw disponível em $(which openclaw)"
+    else
+        # Tentativa de busca em caminhos comuns caso não esteja no PATH
+        local oc_path
+        oc_path=$(find /usr/local/bin /usr/bin $HOME/.openclaw/bin -name openclaw -type f 2>/dev/null | head -1 || true)
+        if [ -n "$oc_path" ]; then
+            alias openclaw="$oc_path"
+            ok "openclaw encontrado em $oc_path (alias)"
+        else
+            fail "openclaw não encontrado no PATH nem em diretórios padrão"
+            err=1
+        fi
+    fi
+
+    if [ -z "$DISCORD_BOT_TOKEN" ]; then
+        echo "  ⚠ DISCORD_BOT_TOKEN não definido — crons e binds do Discord falharão"
+        err=1
+    else
+        ok "DISCORD_BOT_TOKEN presente"
+    fi
+    
+    [ $err -eq 1 ] && echo "🚨 Doctor identificou problemas ignorados — prosseguindo com risco."
+}
+doctor
 echo ""
 # -- Funções utilitárias --
 ok()   { echo "  ✔ $1"; }
