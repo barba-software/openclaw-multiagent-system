@@ -1,5 +1,8 @@
 # WORKING — {{NAME}}
-## Status atual
-Aguardando tarefas.
-## Última atualização
-{{NOW}}
+
+STATUS: idle
+ISSUE: —
+STEP: 0
+NEXT: aguardando issues
+BRANCH: —
+UPDATED: {{NOW}}

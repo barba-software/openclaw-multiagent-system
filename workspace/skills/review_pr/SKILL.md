@@ -23,6 +23,18 @@ openclaw message send \
   --message "👀 Iniciando revisão do PR #{numero_pr} — Issue #{issue}"
 ```
 
+### 0b. Carregar contexto persistente
+
+```bash
+WORKING="$HOME/.openclaw/workspace/projects/{project}/agents/reviewer/WORKING.md"
+LESSONS="$HOME/.openclaw/workspace/projects/{project}/agents/reviewer/LESSONS.md"
+cat "$WORKING"
+cat "$LESSONS" 2>/dev/null || true
+```
+
+Se `STATUS: em andamento` no WORKING.md: revisão foi interrompida. Retome a partir da etapa indicada em `STEP:`.  
+Aplique as lições do `LESSONS.md` durante este ciclo.
+
 ### 1. Validar Contexto (Obrigatório)
 
 Antes de checar o código, verifique se o Developer preencheu corretamente o corpo do PR:
@@ -43,6 +55,16 @@ gh pr list --repo {repo} --label review --state open --json number,title,created
 
 ```bash
 gh pr checkout {numero_pr} --repo {repo}
+```
+
+```bash
+# Checkpoint — checkout feito
+WORKING="$HOME/.openclaw/workspace/projects/{project}/agents/reviewer/WORKING.md"
+sed -i '' 's/^STATUS: .*/STATUS: em andamento/' "$WORKING"
+sed -i '' 's/^PR: .*/PR: #{numero_pr}/' "$WORKING"
+sed -i '' 's/^STEP: .*/STEP: 3 — checkout feito/' "$WORKING"
+sed -i '' 's/^NEXT: .*/NEXT: identificar issue vinculada/' "$WORKING"
+sed -i '' "s/^UPDATED: .*/UPDATED: $(date -Iseconds)/" "$WORKING"
 ```
 
 ### 3b. Identificar a Issue vinculada
@@ -104,6 +126,15 @@ openclaw message send \
   --channel discord \
   --target "thread:$REVIEW_THREAD" \
   --message "✅ PR #{numero_pr} validada tecnicamente — aguardando merge do usuário"
+
+# Resetar WORKING.md — revisão concluída
+WORKING="$HOME/.openclaw/workspace/projects/{project}/agents/reviewer/WORKING.md"
+sed -i '' 's/^STATUS: .*/STATUS: idle/' "$WORKING"
+sed -i '' 's/^PR: .*/PR: —/' "$WORKING"
+sed -i '' 's/^ISSUE: .*/ISSUE: —/' "$WORKING"
+sed -i '' 's/^STEP: .*/STEP: 0/' "$WORKING"
+sed -i '' 's/^NEXT: .*/NEXT: aguardando PRs/' "$WORKING"
+sed -i '' "s/^UPDATED: .*/UPDATED: $(date -Iseconds)/" "$WORKING"
 ```
 
 ### 4b. Solicitação de mudanças
@@ -123,6 +154,17 @@ openclaw message send \
   --channel discord \
   --target "thread:$REVIEW_THREAD" \
   --message "🔁 PR #{numero_pr} precisa de ajustes: {resumo}"
+
+# Checkpoint — mudanças solicitadas
+WORKING="$HOME/.openclaw/workspace/projects/{project}/agents/reviewer/WORKING.md"
+sed -i '' 's/^STATUS: .*/STATUS: idle/' "$WORKING"
+sed -i '' 's/^PR: .*/PR: —/' "$WORKING"
+sed -i '' 's/^STEP: .*/STEP: 0/' "$WORKING"
+sed -i '' 's/^NEXT: .*/NEXT: aguardando PRs/' "$WORKING"
+sed -i '' "s/^UPDATED: .*/UPDATED: $(date -Iseconds)/" "$WORKING"
+
+# Se o bloqueio tiver causa técnica que pode se repetir, invocar SELF_REFLECT:
+# ~/.openclaw/workspace/skills/self_reflect/SKILL.md
 ```
 
 ---

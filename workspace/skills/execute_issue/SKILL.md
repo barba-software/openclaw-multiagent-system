@@ -13,6 +13,18 @@ description: "Gerencia o ciclo de desenvolvimento: branch, commits e Pull Reques
 
 ## Protocolo de Execução
 
+### 0. Carregar contexto persistente (sempre primeiro)
+
+```bash
+WORKING="$HOME/.openclaw/workspace/projects/{project}/agents/developer/WORKING.md"
+LESSONS="$HOME/.openclaw/workspace/projects/{project}/agents/developer/LESSONS.md"
+cat "$WORKING"
+cat "$LESSONS" 2>/dev/null || true
+```
+
+Se `STATUS: em andamento` no WORKING.md: a issue foi interrompida no ciclo anterior. **Pule direto para a próxima etapa pendente** (indicada em `STEP:`) em vez de recomeçar do zero.  
+Se `STATUS: idle`: execute normalmente a partir do passo 1.
+
 ### 1. Encontrar Issues Atribuídas
 
 NÃO usar `--assignee @me` (sem assignee no GitHub).
@@ -33,6 +45,15 @@ gh issue list --repo {repo} --label blocked --state open --json number --jq '.[]
 
 Verificar se a issue está com o assignee interno correto no state.json.
 Se a issue estiver em `blocked`, significa que o Revisor solicitou mudanças. Vá direto para a seção **Processando feedback de Review** abaixo.
+
+```bash
+# Checkpoint — issue encontrada
+WORKING="$HOME/.openclaw/workspace/projects/{project}/agents/developer/WORKING.md"
+sed -i '' 's/^STATUS: .*/STATUS: em andamento/' "$WORKING"
+sed -i '' 's/^ISSUE: .*/ISSUE: #{numero}/' "$WORKING"
+sed -i '' 's/^STEP: .*/STEP: 1 — issue encontrada/' "$WORKING"
+sed -i '' "s/^UPDATED: .*/UPDATED: $(date -Iseconds)/" "$WORKING"
+```
 
 ### 2. Ler issue completa
 
@@ -55,6 +76,11 @@ openclaw message send \
   --channel discord \
   --target "thread:$DEV_THREAD" \
   --message "🚀 Iniciando Issue #{numero} — [Título resumido em 1 linha]"
+
+# Checkpoint — anúncio feito
+sed -i '' 's/^STEP: .*/STEP: 3 — anúnciado no Discord/' "$WORKING"
+sed -i '' 's/^NEXT: .*/NEXT: criar branch/' "$WORKING"
+sed -i '' "s/^UPDATED: .*/UPDATED: $(date -Iseconds)/" "$WORKING"
 ```
 
 ### 5. Navegar para o Workspace e Criar branch
@@ -72,14 +98,21 @@ git checkout -b feature/issue-{numero}
 # Para refatoração: refactor/issue-{numero}
 ```
 
-### 6. Atualizar WORKING_DEV.md
+```bash
+# Checkpoint — branch criada
+sed -i '' 's/^BRANCH: .*/BRANCH: feature\/issue-{numero}/' "$WORKING"
+sed -i '' 's/^STEP: .*/STEP: 5 — branch criada/' "$WORKING"
+sed -i '' 's/^NEXT: .*/NEXT: implementar/' "$WORKING"
+sed -i '' "s/^UPDATED: .*/UPDATED: $(date -Iseconds)/" "$WORKING"
+```
 
-```markdown
-## Issue #XX — [Título]
+### 6. Checkpoint de progresso
 
-Status: em andamento
-Branch: feature/issue-XX
-Iniciado: [timestamp]
+```bash
+# Registrar início de implementação
+sed -i '' 's/^STEP: .*/STEP: 6 — implementando/' "$WORKING"
+sed -i '' 's/^NEXT: .*/NEXT: commit e PR/' "$WORKING"
+sed -i '' "s/^UPDATED: .*/UPDATED: $(date -Iseconds)/" "$WORKING"
 ```
 
 ### 7. Implementar
@@ -102,6 +135,13 @@ git add .
 git commit -m "feat: implementa #{numero} — [descrição curta]"
 ```
 
+```bash
+# Checkpoint — commit realizado
+sed -i '' 's/^STEP: .*/STEP: 8 — commit realizado/' "$WORKING"
+sed -i '' 's/^NEXT: .*/NEXT: abrir PR/' "$WORKING"
+sed -i '' "s/^UPDATED: .*/UPDATED: $(date -Iseconds)/" "$WORKING"
+```
+
 ### 9. Abrir Pull Request
 
 Você DEVE preencher o corpo do PR com informações pertinentes sobre o que foi resolvido ou implementado, detalhando a lógica e o contexto da solução para o revisor.
@@ -113,6 +153,13 @@ PR_URL=$(gh pr create \
   --body "Closes #{numero}\n\n## O que foi resolvido\n[Descreva detalhadamente a lógica implementada, qual problema foi solucionado e como os critérios de aceite foram atendidos]\n\n## Mudanças\n- [Lista das exclusões/adições mais impactantes]\n\n## Testes\n- [ ] [Liste como testar/quais testes foram feitos]" \
   --assignee @me)
 PR_NUMBER=$(echo $PR_URL | grep -oE "[0-9]+$")
+```
+
+```bash
+# Checkpoint — PR aberta
+sed -i '' 's/^STEP: .*/STEP: 9 — PR aberta/' "$WORKING"
+sed -i '' 's/^NEXT: .*/NEXT: disparar state engine/' "$WORKING"
+sed -i '' "s/^UPDATED: .*/UPDATED: $(date -Iseconds)/" "$WORKING"
 ```
 
 ### 10. Disparar transição de estado e anunciar na Thread de Dev
@@ -128,13 +175,16 @@ openclaw message send \
   --message "✅ PR #$PR_NUMBER aberta para Issue #{numero} — aguardando revisão"
 ```
 
-### 11. Atualizar WORKING_DEV.md
+### 11. Resetar WORKING.md (issue concluída neste ciclo)
 
-```markdown
-## Issue #XX — [Título]
-
-Status: em review
-PR: #YY
+```bash
+# Limpar estado — próximo ciclo começa sem contexto antigo
+sed -i '' 's/^STATUS: .*/STATUS: idle/' "$WORKING"
+sed -i '' 's/^ISSUE: .*/ISSUE: —/' "$WORKING"
+sed -i '' 's/^STEP: .*/STEP: 0/' "$WORKING"
+sed -i '' 's/^NEXT: .*/NEXT: aguardando issues/' "$WORKING"
+sed -i '' 's/^BRANCH: .*/BRANCH: —/' "$WORKING"
+sed -i '' "s/^UPDATED: .*/UPDATED: $(date -Iseconds)/" "$WORKING"
 ```
 
 ---
@@ -159,6 +209,15 @@ openclaw message send \
   --channel discord \
   --target "thread:$DEV_THREAD" \
   --message "🚨 Bloqueado na Issue #{numero} — {motivo}"
+
+# Checkpoint — bloqueado
+sed -i '' 's/^STATUS: .*/STATUS: bloqueado/' "$WORKING"
+sed -i '' 's/^STEP: .*/STEP: bloqueado/' "$WORKING"
+sed -i '' 's/^NEXT: .*/NEXT: {motivo}/' "$WORKING"
+sed -i '' "s/^UPDATED: .*/UPDATED: $(date -Iseconds)/" "$WORKING"
+
+# Registrar lição aprendida se o bloqueio tiver causa técnica
+# Invocar SELF_REFLECT: ~/.openclaw/workspace/skills/self_reflect/SKILL.md
 ```
 
 ## Processando feedback de Review

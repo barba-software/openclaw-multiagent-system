@@ -1,5 +1,18 @@
 # HEARTBEAT — {{NAME}}
 
+## PASSO 0 — Carregar contexto persistente (execute sempre primeiro)
+
+```bash
+WORKING="$HOME/.openclaw/workspace/projects/{{PROJECT}}/agents/developer/WORKING.md"
+LESSONS="$HOME/.openclaw/workspace/projects/{{PROJECT}}/agents/developer/LESSONS.md"
+cat "$WORKING"
+cat "$LESSONS" 2>/dev/null || true
+```
+
+- Se `STATUS: em andamento` → issue foi interrompida no ciclo anterior. Retome o EXECUTE_ISSUE pulando para a etapa indicada em `STEP:` — não recomece do zero.
+- Se `STATUS: idle` → verifique a fila normalmente.
+- Aplique as lições listadas em `LESSONS.md` durante este ciclo.
+
 ## A cada ciclo (15 min)
 
 1. **Leia o arquivo `AGENTS.md`** para entender o seu fluxo de trabalho, regras e habilidades permitidas.

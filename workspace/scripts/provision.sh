@@ -191,6 +191,23 @@ setup_ws() {
 for role in product developer reviewer lead; do
   setup_ws "$role" "$PROJECT $role"
 done
+
+# Criar LESSONS.md por agente (memória persistente de aprendizado)
+for role in product developer reviewer lead; do
+  LESSONS_FILE="$BASE_DIR/agents/$role/LESSONS.md"
+  if [ ! -f "$LESSONS_FILE" ]; then
+    mkdir -p "$(dirname "$LESSONS_FILE")"
+    cat > "$LESSONS_FILE" << LESSONS
+# LESSONS — $PROJECT $role
+> Lições aprendidas em ciclos anteriores. Máximo 30 entradas — as mais antigas são removidas automaticamente.
+> Formato: ## [YYYY-MM-DD] {contexto} / Erro-Causa-Lição-Ação
+
+LESSONS
+    ok "LESSONS.md: $role"
+  else
+    ok "LESSONS.md já existe: $role"
+  fi
+done
 echo ""
 
 # =============================================================================
