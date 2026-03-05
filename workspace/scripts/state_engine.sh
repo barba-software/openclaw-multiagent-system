@@ -218,6 +218,19 @@ update_issue() {
   audit "update_issue" "status=$status agent=$agent"
 }
 
+# ── Mapeia chave do state.json → ID do agente OpenClaw ───────────────────────
+# developer-1 → {PROJECT}-developer  (agente inicial criado pelo provision.sh)
+# developer-2, developer-N → {PROJECT}-developer-2  (agentes escalados via scale_developer.sh)
+# outros (reviewer, lead, product) → {PROJECT}-{key}
+map_agent_id() {
+  local key="$1"
+  if [ "$key" = "developer-1" ]; then
+    echo "$PROJECT-developer"
+  else
+    echo "$PROJECT-$key"
+  fi
+}
+
 # ── Atribuição por capacidade ─────────────────────────────────────────────────
 assign_by_capacity() {
   local dev new_state agent_id msg
@@ -247,7 +260,7 @@ assign_by_capacity() {
   echo "✔ Issue #$ISSUE atribuída para $dev"
   sync_label "$ISSUE" "in_progress"
 
-  agent_id="$PROJECT-$dev"
+  agent_id=$(map_agent_id "$dev")
   msg="🔔 NOVA TAREFA: Issue #$ISSUE atribuída a você. Use a skill EXECUTE_ISSUE para iniciar. Anuncie imediatamente na thread ${PROJECT}-dev antes de começar."
   openclaw send --agent "$agent_id" --message "$msg" &>/dev/null \
     && audit "openclaw_send" "agent=$agent_id" \
@@ -446,7 +459,7 @@ handle_blocked() {
     last_dev=$(jq -r --arg i "$ISSUE" '.issues[$i].last_developer // "developer-1"' "$STATE_FILE")
     update_issue "blocked" "$last_dev"
 
-    dev_id="$PROJECT-$last_dev"
+    dev_id=$(map_agent_id "$last_dev")
     dev_msg="🚨 AJUSTES NECESSÁRIOS: PR da Issue #$ISSUE devolvida pelo Reviewer. Veja os comentários no GitHub e use EXECUTE_ISSUE (seção 'feedback de Review'). Anuncie na thread ${PROJECT}-dev."
     openclaw send --agent "$dev_id" --message "$dev_msg" &>/dev/null \
       || echo "  ⚠ Não foi possível notificar $dev_id"
@@ -473,7 +486,7 @@ handle_unblocked() {
     sync_label "$ISSUE" "in_progress"
     call_automation "In Progress"
 
-    dev_id="$PROJECT-$METADATA"
+    dev_id=$(map_agent_id "$METADATA")
     unblock_msg="✅ DESBLOQUEADO: Issue #$ISSUE reatribuída a você. Retome com EXECUTE_ISSUE e anuncie na thread ${PROJECT}-dev."
     openclaw send --agent "$dev_id" --message "$unblock_msg" &>/dev/null || true
 

@@ -18,12 +18,14 @@ description: "Gerencia o ciclo de desenvolvimento: branch, commits e Pull Reques
 NÃO usar `--assignee @me` (sem assignee no GitHub).
 Usar uma destas fontes em ordem de prioridade:
 
-**Fonte primária — state.json:**
+**Fonte primária — state.json** (use `developer-1` como sua chave interna):
+
 ```bash
-cat ~/.openclaw/workspace/projects/{project}/state.json | jq -r --arg a "{nome_do_agente}" '.issues | to_entries[] | select(.value.assigned_agent == $a and (.value.status == "in_progress" or .value.status == "blocked")) | .key'
+cat ~/.openclaw/workspace/projects/{project}/state.json | jq -r '.issues | to_entries[] | select(.value.assigned_agent == "developer-1" and (.value.status == "in_progress" or .value.status == "blocked")) | .key'
 ```
 
 **Fallback — label no GitHub:**
+
 ```bash
 gh issue list --repo {repo} --label in_progress --state open --json number --jq '.[].number'
 gh issue list --repo {repo} --label blocked --state open --json number --jq '.[].number'
@@ -43,14 +45,22 @@ Validar:
 - Critérios de aceite presentes (se ausentes, comentar na issue pedindo ao Product)
 - Sem dependências bloqueantes abertas
 
-### 3. Notificar Início na Thread de Squad
+### 3. Notificar Início na Thread de Dev
 
-Poste IMEDIATAMENTE na thread de `squad`:
-`🚀 Iniciando Issue #{numero} — [Título resumido em 1 linha]`
+Poste IMEDIATAMENTE via `openclaw message send` antes de qualquer trabalho:
+
+```bash
+DEV_THREAD=$(jq -r '.discord_dev_thread_id // empty' ~/.openclaw/workspace/projects/{project}/state.json)
+openclaw message send \
+  --channel discord \
+  --target "thread:$DEV_THREAD" \
+  --message "🚀 Iniciando Issue #{numero} — [Título resumido em 1 linha]"
+```
 
 ### 5. Navegar para o Workspace e Criar branch
 
 Todo o trabalho deve ocorrer estritamente dentro do repositório clonado do projeto:
+
 ```bash
 cd ~/.openclaw/workspace/projects/{project}/repo
 ```
@@ -81,6 +91,7 @@ Iniciado: [timestamp]
 ### 8. Commit (Conventional Commits obrigatório)
 
 Obrigatório utilizar a identidade do agente para o commit:
+
 ```bash
 git config user.name "alfred-ai-developer"
 git config user.email "alfred-ai-developer@barbasoftware.com.br"
@@ -104,10 +115,17 @@ PR_URL=$(gh pr create \
 PR_NUMBER=$(echo $PR_URL | grep -oE "[0-9]+$")
 ```
 
-### 10. Disparar transição de estado
+### 10. Disparar transição de estado e anunciar na Thread de Dev
 
 ```bash
-$HOME/.openclaw/workspace/scripts/state_engine.sh {project} {repo} {numero} pr_created "$PR_NUMBER"
+bash $HOME/.openclaw/workspace/scripts/state_engine.sh {project} {repo} {numero} pr_created "$PR_NUMBER"
+
+# Anunciar PR aberta na thread dev
+DEV_THREAD=$(jq -r '.discord_dev_thread_id // empty' ~/.openclaw/workspace/projects/{project}/state.json)
+openclaw message send \
+  --channel discord \
+  --target "thread:$DEV_THREAD" \
+  --message "✅ PR #$PR_NUMBER aberta para Issue #{numero} — aguardando revisão"
 ```
 
 ### 11. Atualizar WORKING_DEV.md
@@ -130,11 +148,17 @@ PR: #YY
 
 ## Se Bloqueado na Issue #N
 
-- Notificar no Discord: 🚧 Bloqueado na Issue #N: <motivo>
-- Comentar na issue com descrição do bloqueio:
+```bash
+# Comentar na issue e disparar evento de bloqueio
 gh issue comment {numero} --repo {repo} --body "🚨 BLOCKED: {motivo}"
-# Disparar evento de bloqueio
-$HOME/.openclaw/workspace/scripts/state_engine.sh {project} {repo} {numero} blocked "{motivo}"
+bash $HOME/.openclaw/workspace/scripts/state_engine.sh {project} {repo} {numero} blocked "{motivo}"
+
+# Anunciar bloqueio na thread dev
+DEV_THREAD=$(jq -r '.discord_dev_thread_id // empty' ~/.openclaw/workspace/projects/{project}/state.json)
+openclaw message send \
+  --channel discord \
+  --target "thread:$DEV_THREAD" \
+  --message "🚨 Bloqueado na Issue #{numero} — {motivo}"
 ```
 
 ## Processando feedback de Review
@@ -154,9 +178,16 @@ Se o revisor solicitar mudanças (estado `blocked` vindo de `review`):
    ```
 4. Sinalize a correção e peça nova revisão:
    - Comente no PR: `Ajustes realizados. Prontos para nova revisão.`
-   - Chame o `unblocked` para voltar ao radar do time:
+   - Chame o `unblocked` para voltar ao radar do time e anuncie na thread dev:
+
    ```bash
    bash $HOME/.openclaw/workspace/scripts/state_engine.sh {project} {repo} {numero} unblocked
+
+   DEV_THREAD=$(jq -r '.discord_dev_thread_id // empty' ~/.openclaw/workspace/projects/{project}/state.json)
+   openclaw message send \
+     --channel discord \
+     --target "thread:$DEV_THREAD" \
+     --message "🔄 Processando ajustes na Issue #{numero} — ajustes aplicados, retornando para revisão"
    ```
 
 ---

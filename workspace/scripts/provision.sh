@@ -87,14 +87,14 @@ _discord_api() {
 
 # Criar ou encontrar canal de texto
 if [ -z "$CHANNEL_ID" ]; then
-  echo "  Criando canal #$DISCORD_CHANNEL via Discord API..."
-  CHAN_RESULT=$(_discord_api POST "/guilds/$DISCORD_GUILD_ID/channels" \
-    "{\"name\":\"$DISCORD_CHANNEL\",\"type\":0}" 2>/dev/null || true)
-  CHANNEL_ID=$(echo "$CHAN_RESULT" | jq -r '.id // empty' 2>/dev/null || true)
+  echo "  Verificando canal #$DISCORD_CHANNEL..."
+  CHANNELS=$(_discord_api GET "/guilds/$DISCORD_GUILD_ID/channels" "" 2>/dev/null || true)
+  CHANNEL_ID=$(echo "$CHANNELS" | jq -r --arg n "$DISCORD_CHANNEL" '.[] | select(.name==$n and .type==0) | .id' 2>/dev/null | head -1 || true)
   if [ -z "$CHANNEL_ID" ]; then
-    # Canal pode já existir — tentar encontrar
-    CHANNELS=$(_discord_api GET "/guilds/$DISCORD_GUILD_ID/channels" "" 2>/dev/null || true)
-    CHANNEL_ID=$(echo "$CHANNELS" | jq -r --arg n "$DISCORD_CHANNEL" '.[] | select(.name==$n and .type==0) | .id' 2>/dev/null | head -1 || true)
+    echo "  Canal não encontrado — criando #$DISCORD_CHANNEL..."
+    CHAN_RESULT=$(_discord_api POST "/guilds/$DISCORD_GUILD_ID/channels" \
+      "{\"name\":\"$DISCORD_CHANNEL\",\"type\":0}" 2>/dev/null || true)
+    CHANNEL_ID=$(echo "$CHAN_RESULT" | jq -r '.id // empty' 2>/dev/null || true)
   fi
   [ -n "$CHANNEL_ID" ] && ok "Canal #$DISCORD_CHANNEL: $CHANNEL_ID" \
     || warn "Não foi possível criar/encontrar canal #$DISCORD_CHANNEL — informe CHANNEL_ID manualmente"
@@ -102,19 +102,24 @@ else
   ok "Canal (informado): $CHANNEL_ID"
 fi
 
-# Criar threads dentro do canal
-_create_thread() {
+# Busca thread ativa por nome; cria apenas se não encontrar
+_find_or_create_thread() {
   local name=$1
-  local result id
-  result=$(_discord_api POST "/channels/$CHANNEL_ID/threads" \
-    "{\"name\":\"$name\",\"type\":11,\"auto_archive_duration\":10080}" 2>/dev/null || true)
-  id=$(echo "$result" | jq -r '.id // empty' 2>/dev/null || true)
+  local id active_result
+  active_result=$(_discord_api GET "/channels/$CHANNEL_ID/threads/active" "" 2>/dev/null || true)
+  id=$(echo "$active_result" | jq -r --arg n "$name" '.threads[]? | select(.name==$n) | .id' 2>/dev/null | head -1 || true)
+  if [ -z "$id" ]; then
+    local result
+    result=$(_discord_api POST "/channels/$CHANNEL_ID/threads" \
+      "{\"name\":\"$name\",\"type\":11,\"auto_archive_duration\":10080}" 2>/dev/null || true)
+    id=$(echo "$result" | jq -r '.id // empty' 2>/dev/null || true)
+  fi
   echo "$id"
 }
 
 if [ -n "$CHANNEL_ID" ]; then
   if [ -z "$DEV_THREAD_ID" ]; then
-    DEV_THREAD_ID=$(_create_thread "${PROJECT}-dev")
+    DEV_THREAD_ID=$(_find_or_create_thread "${PROJECT}-dev")
     [ -n "$DEV_THREAD_ID" ] && ok "Thread ${PROJECT}-dev: $DEV_THREAD_ID" \
       || warn "Não foi possível criar thread ${PROJECT}-dev — informe DEV_THREAD_ID manualmente"
   else
@@ -122,7 +127,7 @@ if [ -n "$CHANNEL_ID" ]; then
   fi
 
   if [ -z "$REVIEW_THREAD_ID" ]; then
-    REVIEW_THREAD_ID=$(_create_thread "${PROJECT}-review")
+    REVIEW_THREAD_ID=$(_find_or_create_thread "${PROJECT}-review")
     [ -n "$REVIEW_THREAD_ID" ] && ok "Thread ${PROJECT}-review: $REVIEW_THREAD_ID" \
       || warn "Não foi possível criar thread ${PROJECT}-review — informe REVIEW_THREAD_ID manualmente"
   else
@@ -130,7 +135,7 @@ if [ -n "$CHANNEL_ID" ]; then
   fi
 
   if [ -z "$LEAD_THREAD_ID" ]; then
-    LEAD_THREAD_ID=$(_create_thread "${PROJECT}-lead")
+    LEAD_THREAD_ID=$(_find_or_create_thread "${PROJECT}-lead")
     [ -n "$LEAD_THREAD_ID" ] && ok "Thread ${PROJECT}-lead: $LEAD_THREAD_ID" \
       || warn "Não foi possível criar thread ${PROJECT}-lead — informe LEAD_THREAD_ID manualmente"
   else
@@ -250,25 +255,24 @@ echo ""
 # =============================================================================
 echo "[ Crons ]"
 
+# sched_flag: --every | --cron
+# sched_val:  15m     | "0 23 * * *"
 create_cron() {
-  local name=$1 agent=$2 sched=$3 msg=$4
-  # Remove TODAS as entradas com esse nome antes de criar (garante idempotência)
-  while openclaw cron list 2>/dev/null | grep -q "^$name\b"; do
-    openclaw cron delete "$name" 2>/dev/null || break
-  done
-  # shellcheck disable=SC2086
-  openclaw cron add --name "$name" --agent "$agent" $sched \
+  local name=$1 agent=$2 sched_flag=$3 sched_val=$4 msg=$5
+  # Remove entrada anterior garantindo idempotência (sem loop — delete é no-op se não existir)
+  openclaw cron delete "$name" 2>/dev/null || true
+  openclaw cron add --name "$name" --agent "$agent" "$sched_flag" "$sched_val" \
     --session isolated --message "$msg" --no-deliver 2>/dev/null \
     && ok "cron: $name" \
     || warn "cron $name — falha ao criar (crie manualmente se necessário)"
 }
 
-create_cron "${PROJECT}-product-hb"     "${PROJECT}-product"   "--every 15m"            "Heartbeat product"
-create_cron "${PROJECT}-dev-hb"         "${PROJECT}-developer" "--every 15m"            "Heartbeat dev"
-create_cron "${PROJECT}-review-hb"      "${PROJECT}-reviewer"  "--every 15m"            "Heartbeat review"
-create_cron "${PROJECT}-lead-standup"   "${PROJECT}-lead"      "--cron '0 23 * * *'"    "Daily standup"
-create_cron "${PROJECT}-lead-reconcile" "${PROJECT}-lead"      "--every 30m"            "Reconcile"
-create_cron "${PROJECT}-lead-watchdog"  "${PROJECT}-lead"      "--every 15m"            "Watchdog heartbeat"
+create_cron "${PROJECT}-product-hb"     "${PROJECT}-product"   "--every" "15m"        "HEARTBEAT: Leia e execute seu arquivo HEARTBEAT.md em ~/.openclaw/workspace/projects/${PROJECT}/agents/product/HEARTBEAT.md"
+create_cron "${PROJECT}-dev-hb"         "${PROJECT}-developer" "--every" "15m"        "HEARTBEAT: Leia e execute seu arquivo HEARTBEAT.md em ~/.openclaw/workspace/projects/${PROJECT}/agents/developer/HEARTBEAT.md"
+create_cron "${PROJECT}-review-hb"      "${PROJECT}-reviewer"  "--every" "15m"        "HEARTBEAT: Leia e execute seu arquivo HEARTBEAT.md em ~/.openclaw/workspace/projects/${PROJECT}/agents/reviewer/HEARTBEAT.md"
+create_cron "${PROJECT}-lead-standup"   "${PROJECT}-lead"      "--cron"  "0 23 * * *" "STANDUP: Leia e execute a seção 'Diário às 23h00' do seu HEARTBEAT.md em ~/.openclaw/workspace/projects/${PROJECT}/agents/lead/HEARTBEAT.md"
+create_cron "${PROJECT}-lead-reconcile" "${PROJECT}-lead"      "--every" "30m"        "RECONCILE: Execute a skill RECONCILE_STATE. Leia os detalhes em ~/.openclaw/workspace/skills/reconcile_state/SKILL.md"
+create_cron "${PROJECT}-lead-watchdog"  "${PROJECT}-lead"      "--every" "15m"        "WATCHDOG: Leia e execute a seção 'No ciclo de monitoramento (15 min)' do seu HEARTBEAT.md em ~/.openclaw/workspace/projects/${PROJECT}/agents/lead/HEARTBEAT.md"
 echo ""
 
 # =============================================================================

@@ -13,8 +13,20 @@ description: "Realiza revisões de código automatizadas seguindo checklists de 
 
 ## Protocolo de Revisão
 
+### 0. Anunciar início na thread review
+
+```bash
+REVIEW_THREAD=$(jq -r '.discord_review_thread_id // empty' ~/.openclaw/workspace/projects/{project}/state.json)
+openclaw message send \
+  --channel discord \
+  --target "thread:$REVIEW_THREAD" \
+  --message "👀 Iniciando revisão do PR #{numero_pr} — Issue #{issue}"
+```
+
 ### 1. Validar Contexto (Obrigatório)
+
 Antes de checar o código, verifique se o Developer preencheu corretamente o corpo do PR:
+
 - [ ] O campo "O que foi resolvido" está claro?
 - [ ] Os "Critérios de Aceite" foram marcados?
 - [ ] Existe uma seção de "Testes"?
@@ -34,6 +46,7 @@ gh pr checkout {numero_pr} --repo {repo}
 ```
 
 ### 3b. Identificar a Issue vinculada
+
 O `state_engine` precisa do número da **Issue** (ex: #15), não do PR. Procure no corpo do PR por "Closes #XX" ou "Fixes #XX":
 
 ```bash
@@ -81,13 +94,17 @@ gh pr review {numero_pr} --repo {repo} --comment \
   --body "✅ Validado tecnicamente por {{NAME}}. Todos os critérios de aceite foram atendidos e os testes passaram localmente. @User, o PR está pronto para sua revisão final e merge."
 ```
 
-Disparar transição de estado para `approved`:
+Disparar transição de estado para `approved` e anunciar na thread review:
 
 ```bash
-$HOME/.openclaw/workspace/scripts/state_engine.sh {project} {repo} $ISSUE_NUM approved
-```
+bash $HOME/.openclaw/workspace/scripts/state_engine.sh {project} {repo} $ISSUE_NUM approved
 
-- Notificar na Thread de `squad`: `✅ PR #{numero_pr} validada tecnicamente. Aguardando aprovação final do usuário.`
+REVIEW_THREAD=$(jq -r '.discord_review_thread_id // empty' ~/.openclaw/workspace/projects/{project}/state.json)
+openclaw message send \
+  --channel discord \
+  --target "thread:$REVIEW_THREAD" \
+  --message "✅ PR #{numero_pr} validada tecnicamente — aguardando merge do usuário"
+```
 
 ### 4b. Solicitação de mudanças
 
@@ -96,17 +113,22 @@ gh pr review {numero_pr} --repo {repo} --request-changes \
   --body "🔄 Mudanças necessárias:\n- Item 1\n- Item 2"
 ```
 
-Bloquear a issue no State Engine:
+Bloquear a issue no State Engine e anunciar na thread review:
 
 ```bash
-$HOME/.openclaw/workspace/scripts/state_engine.sh {project} {repo} $ISSUE_NUM blocked "PR precisa de ajustes: {resumo_das_mudanças}"
-```
+bash $HOME/.openclaw/workspace/scripts/state_engine.sh {project} {repo} $ISSUE_NUM blocked "PR precisa de ajustes: {resumo_das_mudanças}"
 
-- Notificar na Thread de `squad`: 🔁 PR #{numero_pr} precisa de ajustes: <resumo>
+REVIEW_THREAD=$(jq -r '.discord_review_thread_id // empty' ~/.openclaw/workspace/projects/{project}/state.json)
+openclaw message send \
+  --channel discord \
+  --target "thread:$REVIEW_THREAD" \
+  --message "🔁 PR #{numero_pr} precisa de ajustes: {resumo}"
+```
 
 ---
 
 ## Observação sobre o Merge
+
 O Reviewer Agent **NUNCA** realiza o merge. Após a validação técnica (estado `approved`), o ciclo de vida da issue será encerrado pelo sistema assim que o usuário realizar o merge manual no GitHub (detectado via reconciliação de estado).
 
 ---

@@ -59,6 +59,7 @@ cat $HOME/.openclaw/workspace/projects/{project}/state.json | jq '{
 ```
 
 Verificar também bloqueios ativos via state.json com este detalhamento:
+
 ```bash
 cat $HOME/.openclaw/workspace/projects/{project}/state.json | jq -r '.issues | to_entries[] | select(.value.status == "blocked") | .key'
 ```
@@ -67,14 +68,19 @@ cat $HOME/.openclaw/workspace/projects/{project}/state.json | jq -r '.issues | t
 
 1. **Se encontrar Issue bloqueada ou PR travada > 24h**:
    a. Se bloqueio conversacional for resolúvel → disparar:
-      `bash $HOME/.openclaw/workspace/scripts/state_engine.sh {project} {repo} {N} unblocked`
+   `bash $HOME/.openclaw/workspace/scripts/state_engine.sh {project} {repo} {N} unblocked`
    b. Se crítico, escalar com alerta no Discord antes do relatório geral: `⚠️ Bloqueio: Issue #N parada há <tempo> — <motivo>`
 
 ### 4. Gerar relatório e postar no Discord
 
-Formato do relatório:
+Monte o relatório e poste via `openclaw message send`:
 
-```
+```bash
+LEAD_THREAD=$(jq -r '.discord_lead_thread_id // empty' ~/.openclaw/workspace/projects/{project}/state.json)
+openclaw message send \
+  --channel discord \
+  --target "thread:$LEAD_THREAD" \
+  --message "$(cat <<'MSG'
 📊 DAILY STANDUP — {projeto} — {data}
 
 ✅ Concluído hoje ({N})
@@ -90,10 +96,11 @@ Formato do relatório:
   • #{numero} Título — motivo
 
 📈 Capacidade da squad
-  • developer-1: X/2 issues
-  • developer-2: X/2 issues
+  • developer-1: X/1 issues
 
 🔮 Backlog estimado: X issues pendentes
+MSG
+)"
 ```
 
 ### 5. Atualizar WORKING_LEAD.md e DAILY_LOG.md
