@@ -1,128 +1,167 @@
 ---
 name: "start_project"
-description: "Inicia um novo projeto dentro do sistema OpenClaw, criando toda a estrutura necessária, estado inicial e integrações externas."
+description: "Inicia um novo projeto dentro do sistema OpenClaw, criando toda a estrutura necessária: Discord, board, agentes, crons, labels e repo."
 ---
 
 # START_PROJECT
 
-**Responsável:** Lead Global
-**Permissão:** role=lead-global
-**Ferramentas:** `exec`, Discord channel tool
+**Responsável:** Lead Global  
+**Permissão:** role=lead-global  
+**Ferramentas:** `exec`
+
+---
+
+## Como o openclaw se integra ao Discord
+
+O openclaw **não cria** canais de texto nem threads normais via CLI.
+O `provision.sh` agora tenta criar via **Discord REST API** usando o bot token.
+
+Se a criação via API falhar (permissões insuficientes), o fluxo cai para modo manual:
+o agente solicita os IDs ao usuário e o `rebind_threads.sh` faz o re-bind.
+
+Envio de mensagem ao Discord (documentação oficial):
+
+```bash
+openclaw message send --channel discord --target channel:<ID> --message "texto"
+```
+
+Acordar agente internamente:
+
+```bash
+openclaw send --agent <agentId> --message "texto"
+```
+
+---
+
+## O que o provision.sh cria
+
+| Etapa        | O que faz                                                                                 |
+| ------------ | ----------------------------------------------------------------------------------------- |
+| Discord      | Tenta criar canal + 3 threads via API; registra IDs no openclaw.json                      |
+| Workspaces   | Instancia SOUL/AGENTS/HEARTBEAT/USER/WORKING para cada agente                             |
+| Agentes      | `openclaw agents add` + bindings por ID no openclaw.json                                  |
+| Crons        | product-hb, dev-hb, review-hb, lead-standup, lead-reconcile, lead-watchdog                |
+| Labels       | inbox, in_progress, review, blocked, done, agent:product, agent:developer, agent:reviewer |
+| Board        | GitHub Projects com colunas: Inbox · In Progress · Review · Blocked · Done                |
+| Repo         | `git clone` em `projects/{project}/repo/`                                                 |
+| State        | state.json inicial (1 developer, capacity=1)                                              |
+| Registry     | Entrada no registry.json global                                                           |
+| Health check | Verificação pós-provisionamento automática                                                |
+| Boas-vindas  | Mensagem no canal Discord                                                                 |
 
 ---
 
 ## Workflow
 
-> [!IMPORTANT]
-> Execute todos os passos em ordem, sem pular nenhum sempre, e sempre poste o resultado de cada passo para o usuário.
+### 1. Coletar parâmetros
 
-### 1. Receber e validar os parâmetros
+| Parâmetro | Exemplo              | Obrigatório                |
+| --------- | -------------------- | -------------------------- |
+| `project` | `meu-backend`        | ✅ sem espaços             |
+| `repo`    | `owner/meu-backend`  | ✅                         |
+| `channel` | `meu-backend`        | ✅ sem `#`                 |
+| `guildId` | `123456789012345678` | ✅ ID numérico do servidor |
 
-Você precisa de quatro informações antes de começar:
+Os IDs de canal e threads (`CHANNEL_ID`, `DEV_THREAD_ID`, `REVIEW_THREAD_ID`, `LEAD_THREAD_ID`)
+são **opcionais** — o `provision.sh` tentará criá-los via Discord API automaticamente.
 
-- **project** (nome curto do projeto)
-- **repo** (owner/nome-do-repo no GitHub)
-- **channel** (nome do canal principal no Discord)
-- **guildId** (ID numérico do servidor Discord)
+Se algum estiver faltando, pergunte antes de continuar.
 
-> [!IMPORTANT]
-> Verifique se a variável `DISCORD_BOT_TOKEN` está configurada no ambiente do host OpenClaw antes de executar o script. Sem ela, crons e vínculos de canais falharão.
-
-Se algum estiver faltando, pergunte ao usuário antes de continuar.
-Normalize o `channel`: remova o `#` caso o usuário tenha passado com ele.
-
-**IMPORTANTE (Prevenção de Timeout):**
-Assim que validar os parâmetros, poste IMEDIATAMENTE a primeira mensagem no canal (Passo 2) avisando que o provisionamento começou. Isso evita o erro de "Unknown Interaction" no Discord.
-
-O script é idempotente, então mesmo que o projeto já exista, ele pode ser reexecutado sem causar erros — apenas confirme os parâmetros e siga para o próximo passo.
-
-### 2. Criar o canal Discord e Threads
-
-Siga esta ordem exata para evitar erros de permissão:
-
-1.  **Criar Canal:** Use a ferramenta `create_channel` para criar o canal de texto `{channel}` (se ainda não existir) no servidor `{guildId}`.
-2.  **Criar Threads:** Dentro do NOVO canal `{channel}`, use a ferramenta `create_thread` para criar as seguintes threads públicas:
-    -   `squad` — Para comunicação técnica.
-    -   `lead` — Para gestão e alertas.
-3.  **Postar Mensagem:** No canal PRINCIPAL `{channel}` (não nas threads), poste a mensagem de boas-vindas:
+### 2. Confirmar com o usuário
 
 ```
-👋 Bem-vindo ao projeto **{project}**!
+Vou provisionar:
+• Projeto: {project}
+• Repo:    {repo}
+• Canal:   #{channel} (guild: {guildId})
 
-📦 Repositório: https://github.com/{repo}
-🤖 Squad: Product · Developer · Reviewer · Lead
-🧵 Canais: #squad (técnico) | #lead (gestão)
-🔗 Board: será criado automaticamente pelo provision
+O provision.sh tentará criar o canal e threads automaticamente via Discord API.
+Se falhar, solicitarei os IDs manualmente.
 
-A squad está sendo configurada. Em instantes estaremos operacionais.
+Confirma? (sim/não)
 ```
 
-### 3. Executar o script de provisionamento
+### 3. Validar que o setup foi executado
 
-```javascript
-const output = exec("$HOME/.openclaw/workspace/scripts/provision.sh", "{project}", "{repo}", "{channel}", "{guildId}");
-// Importante: Poste o log completo do provision para o usuário revisar.
-message(channel, "LOG DE PROVISIONAMENTO:\n```\n" + output + "\n```");
+O usuário deve ter rodado o `setup.sh` antes de provisionar qualquer projeto. Esse script popula `~/.openclaw/workspace/` a partir do repositório clonado. Valide antes de continuar:
+
+```bash
+exec("bash", "-c", "
+  MISSING=0
+  [ ! -d \"$HOME/.openclaw/workspace/agents\" ]  && echo 'AUSENTE: $HOME/.openclaw/workspace/agents/'  && MISSING=1
+  [ ! -d \"$HOME/.openclaw/workspace/skills\" ]  && echo 'AUSENTE: $HOME/.openclaw/workspace/skills/'  && MISSING=1
+  [ ! -d \"$HOME/.openclaw/workspace/scripts\" ] && echo 'AUSENTE: $HOME/.openclaw/workspace/scripts/' && MISSING=1
+
+  if [ \$MISSING -eq 1 ]; then
+    echo ''
+    echo 'O setup ainda não foi executado. Siga os passos abaixo:'
+    echo ''
+    echo '  cd ~/.openclaw'
+    echo '  git clone https://github.com/barba-software/openclaw-multiagent-system.git'
+    echo '  cd openclaw-multiagent-system'
+    echo '  bash setup.sh'
+    echo ''
+    echo 'O setup.sh copiará agents/, skills/ e scripts/ para ~/.openclaw/workspace/'
+    echo 'e solicitará o nome do agente principal (Lead / Gerente Geral).'
+    exit 1
+  fi
+
+  echo 'Setup validado. Prosseguindo...'
+")
 ```
 
-Aguarde a conclusão. O script é idempotente — seguro para reexecutar.
+### 4. Executar provision.sh
 
-### 4. Avaliar o resultado
+```bash
+exec("bash", "$HOME/.openclaw/workspace/scripts/provision.sh",
+  "{project}", "{repo}", "{channel}", "{guildId}")
+```
 
-**Se o script falhar:**
+O script é idempotente — reexecutar é seguro.
+Ele criará canal/threads via Discord API e registrará os IDs automaticamente.
 
-- Analise o "Doctor Check" no início do log.
-- Verifique se o `openclaw` foi encontrado e se o `DISCORD_BOT_TOKEN` estava presente.
-- Informe qual passo falhou (labels, board, agentes, crons)
-- Sugira: `health_check.sh {project}` para diagnóstico
+### 5. Verificar IDs Discord no output
+
+Após o provision.sh, verifique o output. Se algum ID ficou vazio:
+
+```
+IDs Discord registrados:
+  Canal principal:  <não configurado>   ← precisa de ação manual
+  Thread dev:       <não configurado>
+  ...
+```
+
+Nesse caso, solicite ao usuário que crie manualmente e execute:
+
+```bash
+exec("bash", "$HOME/.openclaw/workspace/scripts/rebind_threads.sh",
+  "{project}", "{channel}", "{guildId}")
+```
+
+### 6. Avaliar resultado
+
+**Se provision.sh falhar:**
+
+- Exiba o erro completo
+- Não prossiga
+
+| Erro                                | Causa                                  | Solução                                                         |
+| ----------------------------------- | -------------------------------------- | --------------------------------------------------------------- |
+| `Template ausente`                  | `setup.sh` não foi executado           | Seguir os passos do passo 3 para clonar e rodar `bash setup.sh` |
+| `DISCORD_GUILD_ID` vazio            | guildId não informado                  | Solicitar ao usuário                                            |
+| `gh auth` falhou                    | GitHub CLI não autenticado             | `gh auth login`                                                 |
+| `Board não encontrado após criação` | Scope `project` ausente                | `gh auth login --scopes project`                                |
+| Clone falhou                        | Token sem permissão de leitura do repo | Verificar GH_TOKEN                                              |
+
+**Se sucesso:**
+Informe ao usuário que o projeto está operacional e mostre o resumo do health check.
 
 ---
 
-## Solução de Problemas (Troubleshooting)
+## Modo re-provisionamento de labels
 
-| Sintoma                      | Causa Provável                  | Ação do Agente                       |
-| ---------------------------- | ------------------------------- | ------------------------------------ |
-| Canal não criado             | Permissão ou `guildId` inválido | Valide o ID e convite do Bot         |
-| Crons não aparecem           | `DISCORD_BOT_TOKEN` ausente     | Peça ao usuário para checar a env    |
-| `openclaw` não encontrado    | Path não configurado no host    | Reporte o erro de Doctor ao usuário  |
-| "Unknown Interaction"        | Timeout do Discord              | Reduza o delay entre mensagens       |
+Se apenas as labels precisarem ser recriadas:
 
-**Se o script tiver sucesso:**
-
-- Poste no canal `#{channel}`:
-
+```bash
+exec("bash", "-c", "LABELS_ONLY=true bash $HOME/.openclaw/workspace/scripts/provision.sh {project} {repo} {channel} {guildId}")
 ```
-✅ Projeto **{project}** provisionado com sucesso!
-
-🤖 Agentes ativos:
-  • {project}-product   — interpreta demandas
-  • {project}-developer — implementa issues
-  • {project}-reviewer  — revisa PRs
-  • {project}-lead      — supervisiona e reporta
-
-📋 GitHub Board: {project} Board
-🏷️ Labels criadas: inbox · in_progress · review · blocked · done
-
-Para criar uma tarefa, basta escrever aqui no canal.
-O Product Agent irá interpretar e formalizar a Issue automaticamente.
-```
-
-### 5. Registrar no relatório global
-
-Após sucesso, informe ao usuário:
-
-- Nome do projeto criado
-- Canal Discord: `#{channel}`
-- Repositório: `{repo}`
-- Comando para verificar saúde: `$HOME/.openclaw/workspace/scripts/health_check.sh {project}`
-
----
-
-## Erros comuns
-
-| Erro                         | Causa                           | Solução                              |
-| ---------------------------- | ------------------------------- | ------------------------------------ |
-| `gh auth` falhou             | GitHub CLI não autenticado      | `gh auth login`                      |
-| `openclaw agents add` falhou | Agente já existe com mesmo nome | Idempotente — ignorar                |
-| Board não encontrado         | Owner sem permissão de Projects | Verificar permissões do token GitHub |
-| Canal Discord já existe      | Projeto sendo re-provisionado   | Normal — seguir em frente            |

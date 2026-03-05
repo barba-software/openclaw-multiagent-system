@@ -93,15 +93,16 @@ while IFS= read -r issue_id; do
   fi
 
   # Sincronizar card no board
-  declare -A STATUS_MAP
-  STATUS_MAP[inbox]="Inbox"
-  STATUS_MAP[in_progress]="In Progress"
-  STATUS_MAP[review]="Review"
-  STATUS_MAP[approved]="Review"
-  STATUS_MAP[blocked]="Blocked"
-  STATUS_MAP[done]="Done"
-
-  board_status="${STATUS_MAP[$status]:-}"
+  # Mapear status interno → coluna do board (bash compat, sem declare -A em subshell)
+  board_status=""
+  case "$status" in
+    inbox)       board_status="Inbox" ;;
+    in_progress) board_status="In Progress" ;;
+    review)      board_status="Review" ;;
+    approved)    board_status="Review" ;;
+    blocked)     board_status="Blocked" ;;
+    done)        board_status="Done" ;;
+  esac
   if [ -n "$board_status" ]; then
     fix "Sincronizar board: issue #$issue_id → $board_status" \
       "$SCRIPTS_DIR/automation.sh" "$PROJECT" "$REPO" "$issue_id" "$board_status"

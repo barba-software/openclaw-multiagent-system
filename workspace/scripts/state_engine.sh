@@ -35,7 +35,6 @@ elif [ -f "$HOME/.config/gh/hosts.yml" ]; then
 fi
 [ -z "${GH_TOKEN:-}" ] && echo "❌ GH_TOKEN não definido — export GH_TOKEN=seu_token" && exit 1
 
-
 # ── Argumentos ────────────────────────────────────────────────────────────────
 PROJECT="${1:-}"
 REPO="${2:-}"
@@ -88,8 +87,10 @@ if [ -f "$STATE_FILE" ]; then
 fi
 
 # ── Inicializar state.json ────────────────────────────────────────────────────
+# FC-01 CORRIGIDO: sempre começa com 1 developer, capacity=1
+# Para escalar: bash scale_developer.sh <project> <repo>
 if [ ! -f "$STATE_FILE" ]; then
-  echo "📄 Criando state.json para projeto '$PROJECT'..."
+  echo "📄 Criando state.json para '$PROJECT' (1 developer, capacity=1)..."
   cat > "$STATE_FILE" <<STATE
 {
   "project": "$PROJECT",
@@ -99,8 +100,7 @@ if [ ! -f "$STATE_FILE" ]; then
   "updated_at": "$NOW",
   "version": 1,
   "agents": {
-    "developer-1": { "role": "developer", "capacity": 2, "active_issues": [] },
-    "developer-2": { "role": "developer", "capacity": 2, "active_issues": [] }
+    "developer-1": { "role": "developer", "capacity": 1, "active_issues": [] }
   },
   "issues": {}
 }
@@ -128,7 +128,6 @@ validate_state() {
     err=$((err+1))
   fi
 
-  # Validar estrutura de cada agente
   while IFS= read -r ag; do
     for f in role capacity active_issues; do
       if ! jq -e ".agents[\"$ag\"] | has(\"$f\")" "$STATE_FILE" &>/dev/null; then
@@ -190,9 +189,8 @@ write_state() {
 }
 
 bump_version() {
-  local v
+  local v new_state
   v=$(jq '.version // 0' "$STATE_FILE")
-  local new_state
   new_state=$(jq --argjson v "$((v+1))" --arg ts "$NOW" \
     '.version = $v | .updated_at = $ts' "$STATE_FILE")
   write_state "$new_state"
@@ -209,9 +207,7 @@ get_issue_status() {
 
 # ── Atualizar status de issue ─────────────────────────────────────────────────
 update_issue() {
-  local status="$1"
-  local agent="$2"
-  local new_state
+  local status="$1" agent="$2" new_state
   new_state=$(jq \
     --arg i "$ISSUE" --arg s "$status" --arg a "$agent" --arg ts "$NOW" --arg m "$METADATA" \
     '.issues[$i] |= (. // {} | .status=$s | .assigned_agent=$a | .updated_at=$ts |
@@ -224,7 +220,7 @@ update_issue() {
 
 # ── Atribuição por capacidade ─────────────────────────────────────────────────
 assign_by_capacity() {
-  local dev
+  local dev new_state agent_id msg
   dev=$(jq -r '
     .agents | to_entries
     | map(select(.value.role == "developer"))
@@ -236,33 +232,58 @@ assign_by_capacity() {
   if [ -z "$dev" ]; then
     echo "❌ Nenhum developer disponível (todos no limite de capacidade)"
     audit "assign_by_capacity" "no_developer_available" "ERROR"
+    notify_lead_saturation
     exit 3
   fi
 
-  local new_state
   new_state=$(jq \
     --arg i "$ISSUE" --arg d "$dev" --arg ts "$NOW" \
-    '.issues[$i] = { status: "in_progress", assigned_agent: $d, created_at: $ts, updated_at: $ts } |
+    '.issues[$i] = { status: "in_progress", assigned_agent: $d, created_at: $ts, updated_at: $ts, created_via: "state_engine" } |
      .agents[$d].active_issues += [$i]' \
     "$STATE_FILE")
   write_state "$new_state"
   bump_version
   audit "assign_by_capacity" "developer=$dev"
-  echo "✔ Issue #$ISSUE atribuída para $dev (state)"
+  echo "✔ Issue #$ISSUE atribuída para $dev"
   sync_label "$ISSUE" "in_progress"
 
-  # Acordar o agente developer via openclaw send
-  local agent_id="$PROJECT-$dev"
-  local msg="HEARTBEAT: Issue #$ISSUE atribuída. Verifique sua fila com EXECUTE_ISSUE e inicie a implementação."
+  agent_id="$PROJECT-$dev"
+  msg="🔔 NOVA TAREFA: Issue #$ISSUE atribuída a você. Use a skill EXECUTE_ISSUE para iniciar. Anuncie imediatamente na thread ${PROJECT}-dev antes de começar."
   openclaw send --agent "$agent_id" --message "$msg" &>/dev/null \
     && audit "openclaw_send" "agent=$agent_id" \
-    && echo "✔ Agente $agent_id notificado" \
-    || echo "⚠ Não foi possível notificar $agent_id via openclaw (continuando)"
+    && echo "✔ $agent_id notificado" \
+    || echo "⚠ Não foi possível notificar $agent_id (continuando)"
 }
 
-# ── FIX: release_capacity — estava indefinida, causa de crash no pr_merged ────
+# ── Notificar Lead sobre saturação ───────────────────────────────────────────
+notify_lead_saturation() {
+  local total_capacity active_count lead_agent sat_msg new_cycles
+  total_capacity=$(jq '[.agents[] | select(.role=="developer") | .capacity] | add // 0' "$STATE_FILE")
+  active_count=$(jq '[.agents[] | select(.role=="developer") | .active_issues | length] | add // 0' "$STATE_FILE")
+
+  # Incrementar contador de ciclos saturados (usado pelo Lead para decidir SCALE_DEVELOPER)
+  new_cycles=$(jq '
+    [.agents | to_entries[] | select(.value.role=="developer") | .value.saturated_cycles // 0] | max // 0 | . + 1
+  ' "$STATE_FILE")
+  local tmp_sc
+  tmp_sc=$(mktemp)
+  jq --argjson c "$new_cycles" '
+    .agents |= with_entries(
+      if .value.role == "developer" then .value.saturated_cycles = $c else . end
+    )
+  ' "$STATE_FILE" > "$tmp_sc" && mv "$tmp_sc" "$STATE_FILE"
+  audit "saturation_cycle" "cycles=$new_cycles total=${active_count}/${total_capacity}"
+
+  lead_agent="$PROJECT-lead"
+  sat_msg="⚠️ CAPACIDADE SATURADA: Issue #$ISSUE não pôde ser atribuída. Developers no limite (${active_count}/${total_capacity}). Ciclos saturados: ${new_cycles}. $([ "$new_cycles" -ge 2 ] && echo 'AÇÃO NECESSÁRIA — execute: bash ~/.openclaw/workspace/scripts/scale_developer.sh '"$PROJECT $REPO" || echo 'Aguardando próximo ciclo.')"
+  openclaw send --agent "$lead_agent" --message "$sat_msg" &>/dev/null \
+    && echo "✔ Lead notificado sobre saturação (ciclo $new_cycles)" \
+    || echo "⚠ Não foi possível notificar lead sobre saturação"
+}
+
+# ── release_capacity ──────────────────────────────────────────────────────────
 release_capacity() {
-  local agent
+  local agent role new_state
   agent=$(get_issue_agent)
 
   if [ -z "$agent" ]; then
@@ -271,16 +292,14 @@ release_capacity() {
     return 0
   fi
 
-  local role
   role=$(jq -r --arg a "$agent" '.agents[$a].role // empty' "$STATE_FILE")
 
   if [ "$role" != "developer" ]; then
-    echo "⚠ Agente '$agent' (role=$role) — capacidade não é gerenciada"
+    echo "⚠ Agente '$agent' (role=$role) — capacidade não gerenciada"
     audit "release_capacity" "not_developer agent=$agent" "WARN"
     return 0
   fi
 
-  local new_state
   new_state=$(jq \
     --arg i "$ISSUE" --arg a "$agent" \
     '.agents[$a].active_issues = (.agents[$a].active_issues | map(select(. != $i)))' \
@@ -290,72 +309,44 @@ release_capacity() {
   echo "✔ Capacidade liberada: $agent ← issue #$ISSUE removida"
 }
 
-# ── Obter PR da issue ────────────────────────────────────────────────────────
+# ── Obter PR da issue ─────────────────────────────────────────────────────────
 get_issue_pr() {
   jq -r --arg i "$ISSUE" '.issues[$i].pull_request // empty' "$STATE_FILE"
 }
 
 # ── Sync labels GitHub ────────────────────────────────────────────────────────
-# Mapeia status interno → label no GitHub
 sync_label() {
   local issue="$1" new_status="$2"
   local all_status_labels="inbox in_progress review blocked done"
   local all_agent_labels="agent:product agent:developer agent:reviewer"
-  
-  local status_label
-  local agent_label=""
+  local status_label agent_label=""
 
   case "$new_status" in
-    inbox)
-      status_label="inbox"
-      agent_label="agent:product"
-      ;;
-    in_progress)
-      status_label="in_progress"
-      agent_label="agent:developer"
-      ;;
-    review)
-      status_label="review"
-      agent_label="agent:reviewer"
-      ;;
-    blocked)
-      status_label="blocked"
-      # No bloqueio, mantemos a label do agente que estava trabalhando nela
-      ;;
-    done)
-      status_label="done"
-      # No done, podemos remover todas as labels de agente ou manter a última
-      ;;
-    approved)
-      status_label="review"
-      agent_label="agent:reviewer"
-      ;;
-    *)
-      return 0
-      ;;
+    inbox)       status_label="inbox";       agent_label="agent:product"   ;;
+    in_progress) status_label="in_progress"; agent_label="agent:developer" ;;
+    review)      status_label="review";      agent_label="agent:reviewer"  ;;
+    approved)    status_label="review";      agent_label="agent:reviewer"  ;;
+    blocked)     status_label="blocked" ;;
+    done)        status_label="done"    ;;
+    *)           return 0              ;;
   esac
 
   local pr
   pr=$(get_issue_pr)
 
-  # 1. Sincronizar ISSUE
-  # Remover labels de status anteriores
   for lbl in $all_status_labels; do
     gh issue edit "$issue" --repo "$REPO" --remove-label "$lbl" &>/dev/null || true
   done
-  # Se houver uma nova label de agente definida, remover as outras e aplicar a nova
   if [ -n "$agent_label" ]; then
     for lbl in $all_agent_labels; do
       gh issue edit "$issue" --repo "$REPO" --remove-label "$lbl" &>/dev/null || true
     done
     gh issue edit "$issue" --repo "$REPO" --add-label "$agent_label" &>/dev/null || true
   fi
-  # Aplicar label de status
   gh issue edit "$issue" --repo "$REPO" --add-label "$status_label" &>/dev/null \
     && audit "sync_label_issue" "issue=$issue status=$status_label agent=$agent_label" \
     || echo "  ⚠ falha ao sincronizar labels na Issue #$issue"
 
-  # 2. Sincronizar PR (se existir)
   if [ -n "$pr" ]; then
     for lbl in $all_status_labels; do
       gh pr edit "$pr" --repo "$REPO" --remove-label "$lbl" &>/dev/null || true
@@ -385,16 +376,147 @@ call_automation() {
       return 0
     fi
     if [ $attempt -lt $max ]; then
-      echo "  ⏳ Tentativa $attempt falhou. Aguardando ${wait}s..."
+      echo "  ⏳ Aguardando ${wait}s..."
       sleep $wait
       wait=$((wait * 2))
     fi
   done
 
-  echo "⚠ Board GitHub não sincronizado após $max tentativas."
-  echo "  Execute manualmente: $SCRIPTS_DIR/reconcile.sh $PROJECT $REPO"
+  echo "⚠ Board não sincronizado após $max tentativas. Execute: reconcile.sh $PROJECT $REPO"
   audit "automation_sync_failed" "board_status=$board_status retries=$max" "ERROR"
-  return 0  # não propaga erro — estado interno foi preservado
+  return 0
+}
+
+# ── Verificar/criar board ─────────────────────────────────────────────────────
+# FC-04 CORRIGIDO: board criado automaticamente se ausente
+ensure_board_exists() {
+  local owner board_name exists
+  owner=$(echo "$REPO" | cut -d/ -f1)
+  board_name="$PROJECT Board"
+
+  exists=$(gh project list --owner "$owner" --format json 2>/dev/null \
+    | jq -r --arg n "$board_name" '.projects[] | select(.title==$n) | .title' \
+    | head -1 || true)
+
+  if [ -z "$exists" ]; then
+    echo "  📋 Board '$board_name' não encontrado — criando..."
+    gh project create --owner "$owner" --title "$board_name" &>/dev/null \
+      && echo "  ✔ Board criado: $board_name" \
+      || echo "  ⚠ Falha ao criar board. Crie manualmente: gh project create --owner $owner --title \"$board_name\""
+    audit "board_created" "board=$board_name"
+  fi
+}
+
+# =============================================================================
+# FC-05 CORRIGIDO: lógica movida para funções (bash não suporta 'local' em case)
+# =============================================================================
+
+handle_pr_created() {
+  local dev pr_number state_with_pr lead_agent rev_msg lead_msg
+  dev=$(get_issue_agent)
+  pr_number="${METADATA:-}"
+
+  state_with_pr=$(jq --arg i "$ISSUE" --arg d "$dev" --arg pr "$pr_number" \
+    '.issues[$i].last_developer = $d | .issues[$i].pull_request = $pr' "$STATE_FILE")
+  write_state "$state_with_pr"
+
+  update_issue "review" "reviewer"
+  sync_label "$ISSUE" "review"
+  call_automation "Review"
+
+  # Developer avisa Lead: PR pronta
+  lead_agent="$PROJECT-lead"
+  lead_msg="🔔 PR ABERTA: Developer finalizou Issue #$ISSUE. PR #${pr_number:-?} aguarda revisão. Acompanhe em ${PROJECT}-review."
+  openclaw send --agent "$lead_agent" --message "$lead_msg" &>/dev/null \
+    && echo "✔ Lead notificado sobre PR #${pr_number:-?}" \
+    || echo "⚠ Não foi possível notificar lead"
+
+  # Notifica Reviewer
+  rev_msg="🔔 NOVA REVISÃO: PR #${pr_number:-?} aberta para Issue #$ISSUE. Use REVIEW_PR. Anuncie na thread ${PROJECT}-review antes de iniciar."
+  openclaw send --agent "$PROJECT-reviewer" --message "$rev_msg" &>/dev/null \
+    && echo "✔ Reviewer notificado" \
+    || echo "⚠ Não foi possível notificar reviewer"
+}
+
+handle_blocked() {
+  local current_agent last_dev dev_id dev_msg lead_msg
+  current_agent=$(get_issue_agent)
+
+  if [ "$current_agent" = "reviewer" ]; then
+    last_dev=$(jq -r --arg i "$ISSUE" '.issues[$i].last_developer // "developer-1"' "$STATE_FILE")
+    update_issue "blocked" "$last_dev"
+
+    dev_id="$PROJECT-$last_dev"
+    dev_msg="🚨 AJUSTES NECESSÁRIOS: PR da Issue #$ISSUE devolvida pelo Reviewer. Veja os comentários no GitHub e use EXECUTE_ISSUE (seção 'feedback de Review'). Anuncie na thread ${PROJECT}-dev."
+    openclaw send --agent "$dev_id" --message "$dev_msg" &>/dev/null \
+      || echo "  ⚠ Não foi possível notificar $dev_id"
+  else
+    update_issue "blocked" "lead"
+  fi
+
+  sync_label "$ISSUE" "blocked"
+  call_automation "Blocked"
+
+  # Developer (ou reviewer) avisa Lead com motivo
+  lead_msg="🚨 BLOQUEIO: Issue #$ISSUE bloqueada por '${current_agent}'. Motivo: ${METADATA:-não informado}. Acesse a thread ${PROJECT}-lead para providências."
+  openclaw send --agent "$PROJECT-lead" --message "$lead_msg" &>/dev/null \
+    && echo "✔ Lead notificado sobre bloqueio" \
+    || echo "⚠ Não foi possível notificar lead"
+
+  echo "🚨 Issue #$ISSUE bloqueada."
+}
+
+handle_unblocked() {
+  local dev_id unblock_msg lead_msg
+  if [ -n "$METADATA" ] && jq -e --arg a "$METADATA" '.agents[$a].role == "developer"' "$STATE_FILE" &>/dev/null 2>&1; then
+    update_issue "in_progress" "$METADATA"
+    sync_label "$ISSUE" "in_progress"
+    call_automation "In Progress"
+
+    dev_id="$PROJECT-$METADATA"
+    unblock_msg="✅ DESBLOQUEADO: Issue #$ISSUE reatribuída a você. Retome com EXECUTE_ISSUE e anuncie na thread ${PROJECT}-dev."
+    openclaw send --agent "$dev_id" --message "$unblock_msg" &>/dev/null || true
+
+    lead_msg="✅ Issue #$ISSUE desbloqueada → reatribuída para $METADATA."
+    openclaw send --agent "$PROJECT-lead" --message "$lead_msg" &>/dev/null || true
+
+    echo "✔ Issue #$ISSUE desbloqueada → $METADATA"
+  else
+    assign_by_capacity
+    call_automation "In Progress"
+
+    lead_msg="✅ Issue #$ISSUE desbloqueada → developer reatribuído por capacidade."
+    openclaw send --agent "$PROJECT-lead" --message "$lead_msg" &>/dev/null || true
+
+    echo "✔ Issue #$ISSUE desbloqueada → auto_assign"
+  fi
+}
+
+handle_pr_merged() {
+  local done_msg local_closed attempt
+  release_capacity
+  update_issue "done" "lead"
+  sync_label "$ISSUE" "done"
+
+  local_closed=false
+  for attempt in 1 2 3; do
+    if gh issue close "$ISSUE" --repo "$REPO" &>/dev/null; then
+      audit "gh_issue_close" "attempt=$attempt"
+      local_closed=true
+      break
+    fi
+    sleep $((attempt * 3))
+  done
+  [ "$local_closed" = false ] && \
+    echo "⚠ Não foi possível fechar issue #$ISSUE no GitHub. Feche manualmente." && \
+    audit "gh_issue_close_failed" "retries=3" "ERROR"
+
+  call_automation "Done"
+
+  done_msg="🏁 Issue #$ISSUE CONCLUÍDA. PR mergeada e estado sincronizado. Ótimo trabalho!"
+  openclaw send --agent "$PROJECT-developer" --message "$done_msg" &>/dev/null || true
+  openclaw send --agent "$PROJECT-reviewer"  --message "$done_msg" &>/dev/null || true
+  openclaw send --agent "$PROJECT-lead"      --message "$done_msg" &>/dev/null || true
 }
 
 # =============================================================================
@@ -407,10 +529,10 @@ backup_state
 case $EVENT in
 
   issue_created)
+    ensure_board_exists
     update_issue "inbox" "product"
     sync_label "$ISSUE" "inbox"
     call_automation "Inbox"
-    # Auto-assign imediato: não espera próximo heartbeat
     echo "  → auto_assign em seguida..."
     assign_by_capacity
     update_issue "in_progress" "$(get_issue_agent)"
@@ -419,32 +541,13 @@ case $EVENT in
     ;;
 
   auto_assign)
+    ensure_board_exists
     assign_by_capacity
     call_automation "In Progress"
     ;;
 
   pr_created)
-    # Salvar o developer atual antes de mudar para o reviewer
-    local dev
-    dev=$(get_issue_agent)
-    
-    # Capturar número do PR dos metadados ($5 recebido via state_engine.sh)
-    local pr_number="${METADATA:-}"
-    
-    local state_with_pr
-    state_with_pr=$(jq --arg i "$ISSUE" --arg d "$dev" --arg pr "$pr_number" \
-      '.issues[$i].last_developer = $d | .issues[$i].pull_request = $pr' "$STATE_FILE")
-    write_state "$state_with_pr"
-    
-    update_issue "review" "reviewer"
-    sync_label "$ISSUE" "review"
-    call_automation "Review"
-    # Acordar reviewer
-    local reviewer_agent="$PROJECT-reviewer"
-    local msg="HEARTBEAT: PR aberta para Issue #$ISSUE. Verifique com REVIEW_PR e inicie a revisão."
-    openclaw send --agent "$reviewer_agent" --message "$msg" &>/dev/null \
-      && echo "✔ Reviewer $reviewer_agent notificado" \
-      || echo "⚠ Não foi possível notificar reviewer (continuando)"
+    handle_pr_created
     ;;
 
   pr_approved)
@@ -452,84 +555,25 @@ case $EVENT in
     sync_label "$ISSUE" "approved"
     call_automation "Review"
     audit "pr_approved" "awaiting_merge"
-    echo "✔ PR aprovado. Aguardando merge."
+    openclaw send --agent "$PROJECT-lead" \
+      --message "✅ PR aprovada para Issue #$ISSUE. Aguardando merge do usuário no GitHub." \
+      &>/dev/null || true
+    echo "✔ PR aprovada. Aguardando merge."
     ;;
 
   blocked)
-    local current_agent
-    current_agent=$(get_issue_agent)
-    
-    # Se o agente atual for o reviewer, devolvemos a bola para o developer original
-    if [ "$current_agent" = "reviewer" ]; then
-      local last_dev
-      last_dev=$(jq -r --arg i "$ISSUE" '.issues[$i].last_developer // "lead"' "$STATE_FILE")
-      update_issue "blocked" "$last_dev"
-      
-      # Notificar o developer sobre o feedback
-      local dev_id="$PROJECT-$last_dev"
-      local dev_msg="🚨 AJUSTES NECESSÁRIOS: A PR da Issue #$ISSUE foi devolvida para você. Veja os comentários no GitHub e utilize a skill EXECUTE_ISSUE para resolver."
-      openclaw send --agent "$dev_id" --message "$dev_msg" &>/dev/null \
-        || echo "  ⚠ Não foi possível notificar $dev_id"
-    else
-      update_issue "blocked" "lead"
-    fi
-    
-    sync_label "$ISSUE" "blocked"
-    call_automation "Blocked"
-    
-    # Notificar lead sempre por segurança
-    local lead_agent="$PROJECT-lead"
-    local msg="ALERTA: Issue #$ISSUE bloqueada. Motivo: ${METADATA:-não informado}."
-    openclaw send --agent "$lead_agent" --message "$msg" &>/dev/null \
-      && echo "✔ Lead $lead_agent notificado" \
-      || echo "⚠ Não foi possível notificar lead"
-    
-    echo "🚨 Issue #$ISSUE bloqueada."
+    handle_blocked
     ;;
 
   unblocked)
-    # Se METADATA contiver nome de developer válido, reatribui; senão, auto_assign
-    if [ -n "$METADATA" ] && jq -e --arg a "$METADATA" '.agents[$a].role == "developer"' "$STATE_FILE" &>/dev/null 2>&1; then
-      update_issue "in_progress" "$METADATA"
-      sync_label "$ISSUE" "in_progress"
-      call_automation "In Progress"
-      echo "✔ Issue #$ISSUE desbloqueada → reatribuída para $METADATA"
-    else
-      assign_by_capacity
-      # sync_label já é chamado dentro de assign_by_capacity
-      call_automation "In Progress"
-      echo "✔ Issue #$ISSUE desbloqueada → developer reatribuído por capacidade"
-    fi
+    handle_unblocked
     ;;
 
   pr_merged)
-    release_capacity                   # FIX: agora implementada corretamente
-    update_issue "done" "lead"
-    sync_label "$ISSUE" "done"
-    # Fechar issue no GitHub com retry
-    local_closed=false
-    for attempt in 1 2 3; do
-      if gh issue close "$ISSUE" --repo "$REPO" &>/dev/null; then
-        audit "gh_issue_close" "attempt=$attempt"
-        local_closed=true
-        break
-      fi
-      sleep $((attempt * 3))
-    done
-    if [ "$local_closed" = false ]; then
-      echo "⚠ Não foi possível fechar a issue #$ISSUE no GitHub. Feche manualmente."
-      audit "gh_issue_close_failed" "retries=3" "ERROR"
-    fi
-    call_automation "Done"
-    
-    # Notificar conclusión nas threads
-    local msg="🏁 Issue #$ISSUE concluída e PR mergeada! Estado sincronizado para Done."
-    openclaw send --agent "$PROJECT-developer" --message "$msg" &>/dev/null || true
-    openclaw send --agent "$PROJECT-lead"      --message "$msg" &>/dev/null || true
+    handle_pr_merged
     ;;
 
   reopened)
-    local prev_agent
     prev_agent=$(get_issue_agent)
     update_issue "inbox" "product"
     call_automation "Inbox"

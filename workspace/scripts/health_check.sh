@@ -196,6 +196,57 @@ for PROJECT in "${PROJECTS[@]}"; do
   done < <(jq -r '.issues | keys[]' "$STATE_FILE" 2>/dev/null || true)
   [ $orphan_count -eq 0 ] && ok "Issues in_progress consistentes com active_issues"
 
+  # 10. Verificar crons ativos
+  echo ""
+  info "Verificando crons..."
+  if command -v openclaw &>/dev/null; then
+    for cron_name in "${PROJECT}-product-hb" "${PROJECT}-dev-hb" "${PROJECT}-review-hb"                      "${PROJECT}-lead-standup" "${PROJECT}-lead-reconcile" "${PROJECT}-lead-watchdog"; do
+      if openclaw cron list 2>/dev/null | grep -q "$cron_name"; then
+        ok "cron ativo: $cron_name"
+      else
+        warn "cron ausente: $cron_name"
+      fi
+    done
+  else
+    warn "openclaw CLI não disponível — crons não verificados"
+  fi
+
+  # 11. Verificar board GitHub
+  echo ""
+  info "Verificando board GitHub..."
+  if command -v gh &>/dev/null && gh auth status &>/dev/null 2>&1; then
+    OWNER_HC=$(jq -r '.repo // empty' "$STATE_FILE" 2>/dev/null | cut -d/ -f1)
+    BOARD_HC="${PROJECT} Board"
+    if [ -n "$OWNER_HC" ]; then
+      OWNER_NODE_HC=$(gh api "orgs/$OWNER_HC" --jq .node_id 2>/dev/null         || gh api "users/$OWNER_HC" --jq .node_id 2>/dev/null || true)
+      if [ -n "$OWNER_NODE_HC" ]; then
+        BOARD_EXISTS=$(gh api graphql -f query="
+          query { node(id: \"$OWNER_NODE_HC\") {
+            ... on User         { projectsV2(first:20) { nodes { title closed } } }
+            ... on Organization { projectsV2(first:20) { nodes { title closed } } }
+          } }
+        " 2>/dev/null | jq -r ".data.node.projectsV2.nodes[] | select(.title==\"$BOARD_HC\" and .closed==false) | .title" | head -1 || true)
+        [ -n "$BOARD_EXISTS" ] && ok "Board existe: $BOARD_HC" || warn "Board NÃO encontrado: $BOARD_HC"
+      fi
+    fi
+  else
+    info "gh CLI não disponível ou não autenticado — board não verificado"
+  fi
+
+  # 12. Verificar bindings Discord no openclaw.json
+  echo ""
+  info "Verificando bindings Discord..."
+  CONFIG_HC="$HOME/.openclaw/openclaw.json"
+  if [ -f "$CONFIG_HC" ]; then
+    for role in product developer reviewer lead; do
+      agent_hc="${PROJECT}-${role}"
+      bound=$(jq -r --arg a "$agent_hc" '.bindings[] | select(.agentId==$a) | .match.peer.id // empty' "$CONFIG_HC" 2>/dev/null | head -1 || true)
+      [ -n "$bound" ] && ok "binding: $agent_hc → $bound" || warn "binding ausente: $agent_hc (execute rebind_threads.sh)"
+    done
+  else
+    warn "openclaw.json não encontrado em $CONFIG_HC"
+  fi
+
   echo ""
 done
 

@@ -40,7 +40,7 @@ sequenceDiagram
 
     Note over Reviewer: O HEARTBEAT do revisor acorda
     Reviewer->>GitHub: Inspeciona a sanidade do Pull Request
-    
+
     alt Necessita Mudanças
         Reviewer->>GitHub: Solicita mudanças no PR
         Reviewer->>StateEngine: Dispara evento "blocked" (Move ticket pra Blocked)
@@ -49,7 +49,7 @@ sequenceDiagram
         Reviewer->>GitHub: Executa Merge (Squash) do PR
         Reviewer->>StateEngine: Dispara evento "pr_merged" (Move ticket pra Done, liberando DEV)
     end
-    
+
     loop Todo fim do dia e durante o ciclo
         Lead->>StateEngine: Consulta PRs velhos e bloqueios (DAILY_STANDUP / BLOCK_DETECTION)
         Lead->>User: Envia Sumário Diário ao Discord
@@ -76,30 +76,92 @@ sequenceDiagram
    - Transparência total sem ruído: A comunicação técnica ocorre na thread `#squad` (Developer/Reviewer) e a gestão técnica na thread `#lead` (Lead/Standups).
    - Automação via Skill: As threads são criadas automaticamente pela skill `START_PROJECT`, garantindo isolamento total desde o primeiro minuto do projeto.
 
-## 🚀 Como Utilizar e Provisionar
+## 🚀 Instalação e Configuração
 
-O projeto foi projetado para auto-provisionar as pastas e dependências dos agentes baseado num único script bash que injeta os *fallbacks* (templates padrão de comportamento) de todos os papéis da equipe.
+### 1. Pré-requisitos
 
-### 1. Requisitos do Servidor / Máquina
-Você precisa assegurar a existência instalada e ativa de:
-- CLI do GitHub (`gh` autenticado e vinculado a conta e o board).
-- Processador de JSON (`jq` via apt/brew).
-- Um motor / backend do **OpenClaw** rodando para orquestrar e agendar os heartbeats.
-- Uma chave / token para permissões do repo repassados em variável de ambiente.
+Certifique-se de que os seguintes itens estão instalados e autenticados:
 
-### 2. Iniciar o Provisionamento (Self-Install Wizard)
-Mecanize todo o processo instalando a arquitetura globalmente na sua máquina com um único comando iterativo. 
+| Ferramenta                       | Para quê                     | Verificar                    |
+| -------------------------------- | ---------------------------- | ---------------------------- |
+| [OpenClaw](https://openclaw.dev) | Motor de agentes             | `openclaw --version`         |
+| GitHub CLI (`gh`)                | Criar issues, PRs, boards    | `gh auth status`             |
+| `jq`                             | Processar JSON de estado     | `jq --version`               |
+| Bot do Discord                   | Criar canais/threads via API | Variável `DISCORD_BOT_TOKEN` |
 
-Esta "Skill de Instalação":
-1. Clona/Atualiza a base oficial.
-2. Interage no terminal pedindo nome do Projeto, link do Repositório e Canal do Discord.
-3. Injeta as Skills em seu diretório e engatilha o `provision.sh` automaticamente.
+### 2. Clonar e executar o setup
+
+Clone o repositório dentro de `~/.openclaw/` e execute o `setup.sh`:
 
 ```bash
-curl -sL https://raw.githubusercontent.com/barba-software/openclaw-multiagent-system/main/install.sh | bash
+cd ~/.openclaw
+git clone https://github.com/barba-software/openclaw-multiagent-system.git
+cd openclaw-multiagent-system
+bash setup.sh
 ```
 
-*(Alternativamente, para provisionamento manual, você pode dar `git clone` neste repositório, preencher os configs e rodar manualmente `bash workspace/scripts/provision.sh` preenchendo as varáveis).*
+O `setup.sh` irá:
 
-### 3. Integração
-- Uma vez ligado o webhook / cron cronometrado do `HEARTBEAT.md` no painel do OpenClaw, basta ir ao seu canal do Discord (definido no mapeamento global) e disparar a sua requisição como requerimento em linguagem natural para que o `Product Agent` assuma a liderança.
+1. Copiar `agents/`, `skills/` e `scripts/` para `~/.openclaw/workspace/`.
+2. Perguntar o **nome do agente principal** (seu gerente geral / assistente pessoal).
+3. Substituir o placeholder `{MAIN_NAME}` nos arquivos do agente principal e copiá-los para a raiz de `~/.openclaw/workspace/`.
+
+Estrutura resultante:
+
+```
+~/.openclaw/workspace/
+├── AGENTS.md        ← comportamento do agente principal (nome já preenchido)
+├── HEARTBEAT.md
+├── IDENTITY.md
+├── SOUL.md
+├── USER.md
+├── WORKING.md
+├── agents/          ← templates dos agentes de projeto (lead, product, developer, reviewer)
+├── skills/          ← skills disponíveis para todos os agentes
+└── scripts/         ← scripts de provisionamento e automação
+```
+
+### 3. Adicionar o agente principal no OpenClaw
+
+Após o setup, registre o agente principal no OpenClaw apontando para o workspace raiz:
+
+```bash
+openclaw agents add <MAIN_NAME> --workspace ~/.openclaw/workspace
+```
+
+> Substitua `<MAIN_NAME>` pelo nome que você informou no setup (ex: `aria`, `max`).
+
+Opcionalmente, aplique a identidade definida no `IDENTITY.md`:
+
+```bash
+openclaw agents set-identity --workspace ~/.openclaw/workspace --from-identity
+```
+
+### 4. Provisionar um projeto (squad de agentes)
+
+Com o agente principal ativo, peça a ele para provisionar um novo projeto:
+
+```
+provisionar projeto <nome-do-projeto>
+```
+
+Ele executará a skill `start_project`, que coletará os parâmetros necessários e rodará o `provision.sh` — criando automaticamente os quatro agentes do squad (Product, Developer, Reviewer, Lead), o canal Discord, o board GitHub e todos os crons.
+
+Ou execute diretamente:
+
+```bash
+bash ~/.openclaw/workspace/scripts/provision.sh <projeto> <owner/repo> <canal-discord> <guild-id>
+```
+
+### 5. Integração com Discord
+
+Após o provisionamento, os agentes estarão escutando:
+
+| Agente    | Onde escuta                |
+| --------- | -------------------------- |
+| Product   | Canal principal `#<canal>` |
+| Developer | Thread `<projeto>-dev`     |
+| Reviewer  | Thread `<projeto>-review`  |
+| Lead      | Thread `<projeto>-lead`    |
+
+Basta enviar uma mensagem em linguagem natural no canal do Discord e o `Product Agent` assume a liderança.

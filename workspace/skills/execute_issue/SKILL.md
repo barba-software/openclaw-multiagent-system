@@ -48,7 +48,7 @@ Validar:
 Poste IMEDIATAMENTE na thread de `squad`:
 `🚀 Iniciando Issue #{numero} — [Título resumido em 1 linha]`
 
-### 4. Navegar para o Workspace e Criar branch
+### 5. Navegar para o Workspace e Criar branch
 
 Todo o trabalho deve ocorrer estritamente dentro do repositório clonado do projeto:
 ```bash
@@ -62,7 +62,7 @@ git checkout -b feature/issue-{numero}
 # Para refatoração: refactor/issue-{numero}
 ```
 
-### 4. Atualizar WORKING_DEV.md
+### 6. Atualizar WORKING_DEV.md
 
 ```markdown
 ## Issue #XX — [Título]
@@ -72,13 +72,13 @@ Branch: feature/issue-XX
 Iniciado: [timestamp]
 ```
 
-### 5. Implementar
+### 7. Implementar
 
 - Código claro > código inteligente
 - Cobrir os critérios de aceite um a um
 - Adicionar testes para cada critério
 
-### 6. Commit (Conventional Commits obrigatório)
+### 8. Commit (Conventional Commits obrigatório)
 
 Obrigatório utilizar a identidade do agente para o commit:
 ```bash
@@ -91,7 +91,7 @@ git add .
 git commit -m "feat: implementa #{numero} — [descrição curta]"
 ```
 
-### 7. Abrir Pull Request
+### 9. Abrir Pull Request
 
 Você DEVE preencher o corpo do PR com informações pertinentes sobre o que foi resolvido ou implementado, detalhando a lógica e o contexto da solução para o revisor.
 
@@ -104,13 +104,13 @@ PR_URL=$(gh pr create \
 PR_NUMBER=$(echo $PR_URL | grep -oE "[0-9]+$")
 ```
 
-### 8. Disparar transição de estado
+### 10. Disparar transição de estado
 
 ```bash
 $HOME/.openclaw/workspace/scripts/state_engine.sh {project} {repo} {numero} pr_created "$PR_NUMBER"
 ```
 
-### 9. Atualizar WORKING_DEV.md
+### 11. Atualizar WORKING_DEV.md
 
 ```markdown
 ## Issue #XX — [Título]

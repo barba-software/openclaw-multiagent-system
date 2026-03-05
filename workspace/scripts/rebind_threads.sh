@@ -27,16 +27,16 @@ openclaw agents bind --agent "${PROJECT}-product" --bind "discord:${CHANNEL}"
 echo "  ✔ ${PROJECT}-product -> discord:${CHANNEL}"
 
 # 2. Lead -> Thread lead
-openclaw agents bind --agent "${PROJECT}-lead" --bind "discord:lead"
-echo "  ✔ ${PROJECT}-lead -> discord:lead"
+openclaw agents bind --agent "${PROJECT}-lead" --bind "discord:${PROJECT}-lead"
+echo "  ✔ ${PROJECT}-lead -> discord:${PROJECT}-lead"
 
 # 3. Developer -> Thread squad
-openclaw agents bind --agent "${PROJECT}-developer" --bind "discord:squad"
-echo "  ✔ ${PROJECT}-developer -> discord:squad"
+openclaw agents bind --agent "${PROJECT}-developer" --bind "discord:${PROJECT}-dev"
+echo "  ✔ ${PROJECT}-developer -> discord:${PROJECT}-dev"
 
 # 4. Reviewer -> Thread squad
-openclaw agents bind --agent "${PROJECT}-reviewer" --bind "discord:squad"
-echo "  ✔ ${PROJECT}-reviewer -> discord:squad"
+openclaw agents bind --agent "${PROJECT}-reviewer" --bind "discord:${PROJECT}-review"
+echo "  ✔ ${PROJECT}-reviewer -> discord:${PROJECT}-review"
 
 echo ""
 echo "✅ Sincronização de threads finalizada para o projeto $PROJECT!"

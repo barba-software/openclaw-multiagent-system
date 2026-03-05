@@ -87,45 +87,47 @@ if [ -z "$ISSUE_URL" ]; then
 fi
 
 # ── Obter ou criar Item no Board via GraphQL ──────────────────────────────────
-_TMP_ITEMS=$(mktemp)
-gh api graphql -f query="
-  query {
-    node(id: \"$BOARD_ID\") {
-      ... on ProjectV2 {
-        items(first: 100) {
-          nodes {
-            id
-            content {
-              ... on Issue { url number }
+# Buscar item com paginação (suporta boards com >100 issues)
+_find_board_item() {
+  local board_id="$1" issue_url="$2" cursor="" found=""
+  local page=0
+  while [ $page -lt 20 ]; do  # max 2000 items
+    page=$((page+1))
+    local after_arg=""
+    [ -n "$cursor" ] && after_arg=", after: \\\"$cursor\\\""
+    local _tmp
+    _tmp=$(mktemp)
+    gh api graphql -f query="
+      query {
+        node(id: \"$board_id\") {
+          ... on ProjectV2 {
+            items(first: 100$after_arg) {
+              pageInfo { hasNextPage endCursor }
+              nodes { id content { ... on Issue { url } } }
             }
           }
         }
       }
-    }
-  }
-" 2>/dev/null > "$_TMP_ITEMS" || true
+    " 2>/dev/null > "$_tmp" || true
+    found=$(jq -r ".data.node.items.nodes[] | select(.content.url == \"$issue_url\") | .id" \
+      "$_tmp" 2>/dev/null | head -1 || true)
+    local has_next
+    has_next=$(jq -r '.data.node.items.pageInfo.hasNextPage // false' "$_tmp" 2>/dev/null || echo false)
+    cursor=$(jq -r '.data.node.items.pageInfo.endCursor // empty' "$_tmp" 2>/dev/null || true)
+    rm -f "$_tmp"
+    [ -n "$found" ] && echo "$found" && return 0
+    [ "$has_next" = "false" ] && break
+  done
+  echo ""
+}
 
-ITEM_ID=$(jq -r   ".data.node.items.nodes[] | select(.content.url == \"$ISSUE_URL\") | .id"   "$_TMP_ITEMS" 2>/dev/null | head -1 || true)
-rm -f "$_TMP_ITEMS"
+ITEM_ID=$(_find_board_item "$BOARD_ID" "$ISSUE_URL")
 
 if [ -z "$ITEM_ID" ]; then
   echo "  ➕ Issue não está no board — adicionando..."
   gh project item-add "$BOARD_NUMBER" --owner "$OWNER" --url "$ISSUE_URL" >/dev/null
-  sleep 1
-  _TMP_ITEMS2=$(mktemp)
-  gh api graphql -f query="
-    query {
-      node(id: \"$BOARD_ID\") {
-        ... on ProjectV2 {
-          items(first: 100) {
-            nodes { id content { ... on Issue { url } } }
-          }
-        }
-      }
-    }
-  " > "$_TMP_ITEMS2"
-  ITEM_ID=$(jq -r     ".data.node.items.nodes[] | select(.content.url == \"$ISSUE_URL\") | .id"     "$_TMP_ITEMS2" 2>/dev/null | head -1 || true)
-  rm -f "$_TMP_ITEMS2"
+  sleep 2
+  ITEM_ID=$(_find_board_item "$BOARD_ID" "$ISSUE_URL")
   if [ -z "$ITEM_ID" ]; then
     echo "❌ Falha ao obter item do board após adicionar"
     exit 1

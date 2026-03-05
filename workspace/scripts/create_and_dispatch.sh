@@ -50,13 +50,26 @@ fi
 
 # ── Criar Issue ───────────────────────────────────────────────────────────────
 echo "📝 Criando Issue..."
+
+# Tentar com --project (requer scope 'project'); se falhar, criar sem e add ao board depois
 ISSUE_URL=$(gh issue create \
   --repo "$REPO" \
   --title "$TITLE" \
   --body "$BODY" \
   --label "$LABELS" \
   --project "$PROJECT Board" \
-  2>/dev/null)
+  2>/dev/null) || true
+
+if [ -z "$ISSUE_URL" ]; then
+  echo "  ⚠ Criação com --project falhou (sem scope 'project'?). Criando sem board..."
+  ISSUE_URL=$(gh issue create \
+    --repo "$REPO" \
+    --title "$TITLE" \
+    --body "$BODY" \
+    --label "$LABELS" \
+    2>/dev/null)
+  BOARD_FALLBACK=true
+fi
 
 ISSUE_NUM=$(echo "$ISSUE_URL" | grep -oE '[0-9]+$')
 
@@ -66,6 +79,14 @@ if [ -z "$ISSUE_NUM" ]; then
 fi
 
 echo "✔ Issue #$ISSUE_NUM criada: $ISSUE_URL"
+
+# Se o --project falhou, garantir que a issue seja adicionada ao board via automation.sh
+if [ "${BOARD_FALLBACK:-false}" = "true" ]; then
+  echo "  📋 Adicionando ao board via automation.sh..."
+  "$SCRIPTS_DIR/automation.sh" "$PROJECT" "$REPO" "$ISSUE_NUM" "Inbox" 2>/dev/null \
+    && echo "  ✔ Issue adicionada ao board" \
+    || echo "  ⚠ Falha ao adicionar ao board — reconcile.sh corrigirá automaticamente"
+fi
 
 # ── Disparar state-engine ────────────────────────────────────────────────────
 echo "⚙ Disparando state-engine (issue_created + auto_assign)..."

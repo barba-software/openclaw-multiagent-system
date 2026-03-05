@@ -131,10 +131,3 @@ echo "────────────────────────�
 echo "Issues encontradas: $COUNT"
 echo "Despachadas:        $DISPATCHED"
 [ "$DRY_RUN" = true ] && echo "(dry-run — nenhuma alteração aplicada)"
-
-# DEBUG TEMPORÁRIO — remover após confirmar
-echo "=== DEBUG ==="
-echo "gh issue list raw:"
-gh issue list --repo "$REPO" --state open --json number,title,labels 2>&1 | head -20
-echo "gh auth status:"
-gh auth status 2>&1
