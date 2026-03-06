@@ -82,7 +82,7 @@ NOW=$(date -Iseconds)
 
 # ── Discord Context ───────────────────────────────────────────────────────────
 if [ -f "$STATE_FILE" ]; then
-  _guild=$(jq -r '.discord_guild_id // empty' "$STATE_FILE")
+  _guild=$(jq -r '.discord.guild_id // .discord_guild_id // empty' "$STATE_FILE")
   [ -n "$_guild" ] && export DISCORD_GUILD_ID="$_guild"
 fi
 
@@ -95,7 +95,11 @@ if [ ! -f "$STATE_FILE" ]; then
 {
   "project": "$PROJECT",
   "repo": "$REPO",
-  "discord_guild_id": "${DISCORD_GUILD_ID:-}",
+  "discord": {
+    "guild_id": "${DISCORD_GUILD_ID:-}",
+    "channel": "",
+    "threads": { "dev": "", "review": "", "lead": "" }
+  },
   "created_at": "$NOW",
   "updated_at": "$NOW",
   "version": 1,

@@ -71,7 +71,7 @@ Validar:
 Poste IMEDIATAMENTE via `openclaw message send` antes de qualquer trabalho:
 
 ```bash
-DEV_THREAD=$(jq -r '.discord_dev_thread_id // empty' ~/.openclaw/workspace/projects/{project}/state.json)
+DEV_THREAD=$(jq -r '.discord.threads.dev // empty' ~/.openclaw/workspace/projects/{project}/state.json)
 openclaw message send \
   --channel discord \
   --target "thread:$DEV_THREAD" \
@@ -168,7 +168,7 @@ sed -i '' "s/^UPDATED: .*/UPDATED: $(date -Iseconds)/" "$WORKING"
 bash $HOME/.openclaw/workspace/scripts/state_engine.sh {project} {repo} {numero} pr_created "$PR_NUMBER"
 
 # Anunciar PR aberta na thread dev
-DEV_THREAD=$(jq -r '.discord_dev_thread_id // empty' ~/.openclaw/workspace/projects/{project}/state.json)
+DEV_THREAD=$(jq -r '.discord.threads.dev // empty' ~/.openclaw/workspace/projects/{project}/state.json)
 openclaw message send \
   --channel discord \
   --target "thread:$DEV_THREAD" \
@@ -204,7 +204,7 @@ gh issue comment {numero} --repo {repo} --body "🚨 BLOCKED: {motivo}"
 bash $HOME/.openclaw/workspace/scripts/state_engine.sh {project} {repo} {numero} blocked "{motivo}"
 
 # Anunciar bloqueio na thread dev
-DEV_THREAD=$(jq -r '.discord_dev_thread_id // empty' ~/.openclaw/workspace/projects/{project}/state.json)
+DEV_THREAD=$(jq -r '.discord.threads.dev // empty' ~/.openclaw/workspace/projects/{project}/state.json)
 openclaw message send \
   --channel discord \
   --target "thread:$DEV_THREAD" \
@@ -242,7 +242,7 @@ Se o revisor solicitar mudanças (estado `blocked` vindo de `review`):
    ```bash
    bash $HOME/.openclaw/workspace/scripts/state_engine.sh {project} {repo} {numero} unblocked
 
-   DEV_THREAD=$(jq -r '.discord_dev_thread_id // empty' ~/.openclaw/workspace/projects/{project}/state.json)
+   DEV_THREAD=$(jq -r '.discord.threads.dev // empty' ~/.openclaw/workspace/projects/{project}/state.json)
    openclaw message send \
      --channel discord \
      --target "thread:$DEV_THREAD" \

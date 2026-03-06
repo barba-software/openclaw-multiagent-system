@@ -2,15 +2,15 @@
 
 ## Identidade no State Engine
 
-| Atributo                   | Valor                                           |
-| -------------------------- | ----------------------------------------------- |
-| ID do agente OpenClaw      | `{{PROJECT}}-lead`                              |
-| Thread de trabalho Discord | ID em `.discord_lead_thread_id` no `state.json` |
+| Atributo                   | Valor                                         |
+| -------------------------- | --------------------------------------------- |
+| ID do agente OpenClaw      | `{{PROJECT}}-lead`                            |
+| Thread de trabalho Discord | ID em `.discord.threads.lead` no `state.json` |
 
 **Como postar no Discord** (obrigatório em todos os anúncios):
 
 ```bash
-LEAD_THREAD=$(jq -r '.discord_lead_thread_id // empty' ~/.openclaw/workspace/projects/{{PROJECT}}/state.json)
+LEAD_THREAD=$(jq -r '.discord.threads.lead // empty' ~/.openclaw/workspace/projects/{{PROJECT}}/state.json)
 openclaw message send --channel discord --target "thread:$LEAD_THREAD" --message "{mensagem}"
 ```
 

@@ -16,7 +16,7 @@ description: "Realiza revisões de código automatizadas seguindo checklists de 
 ### 0. Anunciar início na thread review
 
 ```bash
-REVIEW_THREAD=$(jq -r '.discord_review_thread_id // empty' ~/.openclaw/workspace/projects/{project}/state.json)
+REVIEW_THREAD=$(jq -r '.discord.threads.review // empty' ~/.openclaw/workspace/projects/{project}/state.json)
 openclaw message send \
   --channel discord \
   --target "thread:$REVIEW_THREAD" \
@@ -121,7 +121,7 @@ Disparar transição de estado para `approved` e anunciar na thread review:
 ```bash
 bash $HOME/.openclaw/workspace/scripts/state_engine.sh {project} {repo} $ISSUE_NUM approved
 
-REVIEW_THREAD=$(jq -r '.discord_review_thread_id // empty' ~/.openclaw/workspace/projects/{project}/state.json)
+REVIEW_THREAD=$(jq -r '.discord.threads.review // empty' ~/.openclaw/workspace/projects/{project}/state.json)
 openclaw message send \
   --channel discord \
   --target "thread:$REVIEW_THREAD" \
@@ -149,7 +149,7 @@ Bloquear a issue no State Engine e anunciar na thread review:
 ```bash
 bash $HOME/.openclaw/workspace/scripts/state_engine.sh {project} {repo} $ISSUE_NUM blocked "PR precisa de ajustes: {resumo_das_mudanças}"
 
-REVIEW_THREAD=$(jq -r '.discord_review_thread_id // empty' ~/.openclaw/workspace/projects/{project}/state.json)
+REVIEW_THREAD=$(jq -r '.discord.threads.review // empty' ~/.openclaw/workspace/projects/{project}/state.json)
 openclaw message send \
   --channel discord \
   --target "thread:$REVIEW_THREAD" \

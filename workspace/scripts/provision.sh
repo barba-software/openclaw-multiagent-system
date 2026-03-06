@@ -437,11 +437,15 @@ if [ ! -f "$STATE_FILE" ]; then
 {
   "project": "$PROJECT",
   "repo": "$REPO",
-  "discord_guild_id": "$DISCORD_GUILD_ID",
-  "discord_channel_id": "${CHANNEL_ID:-}",
-  "discord_dev_thread_id": "${DEV_THREAD_ID:-}",
-  "discord_review_thread_id": "${REVIEW_THREAD_ID:-}",
-  "discord_lead_thread_id": "${LEAD_THREAD_ID:-}",
+  "discord": {
+    "guild_id": "$DISCORD_GUILD_ID",
+    "channel": "${CHANNEL_ID:-}",
+    "threads": {
+      "dev": "${DEV_THREAD_ID:-}",
+      "review": "${REVIEW_THREAD_ID:-}",
+      "lead": "${LEAD_THREAD_ID:-}"
+    }
+  },
   "created_at": "$NOW",
   "updated_at": "$NOW",
   "version": 1,

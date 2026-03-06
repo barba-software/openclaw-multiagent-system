@@ -76,7 +76,7 @@ cat $HOME/.openclaw/workspace/projects/{project}/state.json | jq -r '.issues | t
 Monte o relatório e poste via `openclaw message send`:
 
 ```bash
-LEAD_THREAD=$(jq -r '.discord_lead_thread_id // empty' ~/.openclaw/workspace/projects/{project}/state.json)
+LEAD_THREAD=$(jq -r '.discord.threads.lead // empty' ~/.openclaw/workspace/projects/{project}/state.json)
 openclaw message send \
   --channel discord \
   --target "thread:$LEAD_THREAD" \

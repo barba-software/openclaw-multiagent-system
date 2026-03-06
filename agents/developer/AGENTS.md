@@ -5,16 +5,16 @@
 
 ## Identidade no State Engine
 
-| Atributo                   | Valor                                          |
-| -------------------------- | ---------------------------------------------- |
-| ID do agente OpenClaw      | `{{PROJECT}}-developer`                        |
-| Chave no `state.json`      | `developer-1`                                  |
-| Thread de trabalho Discord | ID em `.discord_dev_thread_id` no `state.json` |
+| Atributo                   | Valor                                        |
+| -------------------------- | -------------------------------------------- |
+| ID do agente OpenClaw      | `{{PROJECT}}-developer`                      |
+| Chave no `state.json`      | `developer-1`                                |
+| Thread de trabalho Discord | ID em `.discord.threads.dev` no `state.json` |
 
 **Como postar no Discord** (obrigatório em todos os anuncios):
 
 ```bash
-DEV_THREAD=$(jq -r '.discord_dev_thread_id // empty' ~/.openclaw/workspace/projects/{{PROJECT}}/state.json)
+DEV_THREAD=$(jq -r '.discord.threads.dev // empty' ~/.openclaw/workspace/projects/{{PROJECT}}/state.json)
 openclaw message send --channel discord --target "thread:$DEV_THREAD" --message "{mensagem}"
 ```
 

@@ -2,15 +2,15 @@
 
 ## Identidade no State Engine
 
-| Atributo                   | Valor                                             |
-| -------------------------- | ------------------------------------------------- |
-| ID do agente OpenClaw      | `{{PROJECT}}-reviewer`                            |
-| Thread de trabalho Discord | ID em `.discord_review_thread_id` no `state.json` |
+| Atributo                   | Valor                                           |
+| -------------------------- | ----------------------------------------------- |
+| ID do agente OpenClaw      | `{{PROJECT}}-reviewer`                          |
+| Thread de trabalho Discord | ID em `.discord.threads.review` no `state.json` |
 
 **Como postar no Discord** (obrigatório em todos os anúncios):
 
 ```bash
-REVIEW_THREAD=$(jq -r '.discord_review_thread_id // empty' ~/.openclaw/workspace/projects/{{PROJECT}}/state.json)
+REVIEW_THREAD=$(jq -r '.discord.threads.review // empty' ~/.openclaw/workspace/projects/{{PROJECT}}/state.json)
 openclaw message send --channel discord --target "thread:$REVIEW_THREAD" --message "{mensagem}"
 ```
 
