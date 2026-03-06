@@ -31,14 +31,14 @@ sequenceDiagram
     Product->>StateEngine: Dispara evento "issue_created"
     StateEngine-->>Dev: Atribui Issue formalmente ao agente dev
 
-    Note over Dev: O HEARTBEAT do dev acorda e manda ele ler o AGENTS.md
+    Note over Dev: state_engine acorda o dev via openclaw send
     Dev->>StateEngine: Verifica qual a sua issue atual (skill EXECUTE_ISSUE)
     Dev->>Dev: Puxa o repo, cria branch, gera e testa o código localmente
 
     Dev->>GitHub: Abre o Pull Request documentado
     Dev->>StateEngine: Dispara evento "pr_created" (Move ticket pra Review)
 
-    Note over Reviewer: O HEARTBEAT do revisor acorda
+    Note over Reviewer: state_engine acorda o reviewer via openclaw send
     Reviewer->>GitHub: Inspeciona a sanidade do Pull Request
 
     alt Necessita Mudanças
@@ -59,7 +59,7 @@ sequenceDiagram
 ## ✨ Principais Funcionalidades
 
 1. **Arquitetura Desacoplada e Segura:**
-   - `HEARTBEAT.md`: Atua apenas como "Despertador" temporal. Nenhum comando sensível vive aqui.
+   - `HEARTBEAT.md`: Define o modo de operação de cada agente — reativo (event-driven) ou periódico (cron). Nenhum comando sensível vive aqui.
    - `AGENTS.md`: Define a lógica processual e comportamental de cada cargo.
    - `SKILLS.md` & `scripts/*.sh`: Segura a "Força Bruta" e as integrações (Scripts, GH CLI, JQ), impedindo alucinações de comandos.
 2. **Motor de Estado e Orquestração (`state_engine.sh`):**
@@ -72,8 +72,8 @@ sequenceDiagram
 4. **Identidade e Rastreabilidade:**
    - Prevenções para que commits e features não vazem o tracking (ex: Developer assina commits como `alfred-ai-developer`).
    - Ciclo de feedback fechado: Desenvolvedores são alertados e reatribuídos automaticamente quando o review solicita mudanças (`blocked` status).
-5. **Estrutura de Threads Elite (`squad` & `lead`):**
-   - Transparência total sem ruído: A comunicação técnica ocorre na thread `#squad` (Developer/Reviewer) e a gestão técnica na thread `#lead` (Lead/Standups).
+5. **Estrutura de Threads Dedicadas (dev, review, lead):**
+   - Transparência total sem ruído: Cada agente tem sua thread dedicada — Developer opera em `<projeto>-dev`, Reviewer em `<projeto>-review`, Lead em `<projeto>-lead`. Product responde no canal principal `#<canal>`.
    - Automação via Skill: As threads são criadas automaticamente pela skill `START_PROJECT`, garantindo isolamento total desde o primeiro minuto do projeto.
 
 ## 🚀 Instalação e Configuração
@@ -155,13 +155,13 @@ bash ~/.openclaw/workspace/scripts/provision.sh <projeto> <owner/repo> <canal-di
 
 ### 5. Integração com Discord
 
-Após o provisionamento, os agentes estarão escutando:
+Após o provisionamento, os agentes estarão escutando e respondendo em seus respectivos locais:
 
-| Agente    | Onde escuta                |
-| --------- | -------------------------- |
-| Product   | Canal principal `#<canal>` |
-| Developer | Thread `<projeto>-dev`     |
-| Reviewer  | Thread `<projeto>-review`  |
-| Lead      | Thread `<projeto>-lead`    |
+| Agente    | Onde escuta e responde     | Modo de operação                                       |
+| --------- | -------------------------- | ------------------------------------------------------ |
+| Product   | Canal principal `#<canal>` | **Reativo** — responde em tempo real via Discord binding |
+| Developer | Thread `<projeto>-dev`     | **Híbrido** — notificado via `openclaw send` + cron 30m |
+| Reviewer  | Thread `<projeto>-review`  | **Reativo** — notificado via `openclaw send` no PR      |
+| Lead      | Thread `<projeto>-lead`    | **Cron** — watchdog 15m + standup diário 23h            |
 
 Basta enviar uma mensagem em linguagem natural no canal do Discord e o `Product Agent` assume a liderança.

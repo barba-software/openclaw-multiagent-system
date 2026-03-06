@@ -284,9 +284,23 @@ create_cron() {
     || warn "cron $name — falha ao criar (crie manualmente se necessário)"
 }
 
-create_cron "${PROJECT}-product-hb"     "${PROJECT}-product"   "--every" "15m"        "HEARTBEAT: Leia e execute seu arquivo HEARTBEAT.md em ~/.openclaw/workspace/projects/${PROJECT}/agents/product/HEARTBEAT.md"
-create_cron "${PROJECT}-dev-hb"         "${PROJECT}-developer" "--every" "15m"        "HEARTBEAT: Leia e execute seu arquivo HEARTBEAT.md em ~/.openclaw/workspace/projects/${PROJECT}/agents/developer/HEARTBEAT.md"
-create_cron "${PROJECT}-review-hb"      "${PROJECT}-reviewer"  "--every" "15m"        "HEARTBEAT: Leia e execute seu arquivo HEARTBEAT.md em ~/.openclaw/workspace/projects/${PROJECT}/agents/reviewer/HEARTBEAT.md"
+# ── Product: REATIVO via Discord binding (sem cron) ──
+# O Product Agent responde em tempo real às mensagens no canal #{{DISCORD_CHANNEL}}.
+# Ele é acordado automaticamente pelo binding do OpenClaw — não precisa de cron.
+# Um cron de segurança a cada 2h verifica pendências não processadas.
+create_cron "${PROJECT}-product-hb"     "${PROJECT}-product"   "--every" "2h"         "HEARTBEAT: Leia e execute seu arquivo HEARTBEAT.md em ~/.openclaw/workspace/projects/${PROJECT}/agents/product/HEARTBEAT.md"
+
+# ── Developer: cron de segurança (30 min) ──
+# O Developer é acordado via 'openclaw send' pelo state_engine quando uma issue é atribuída.
+# O cron funciona apenas como safety net para retomar trabalho interrompido (WORKING.md).
+create_cron "${PROJECT}-dev-hb"         "${PROJECT}-developer" "--every" "30m"        "HEARTBEAT: Leia e execute seu arquivo HEARTBEAT.md em ~/.openclaw/workspace/projects/${PROJECT}/agents/developer/HEARTBEAT.md"
+
+# ── Reviewer: REATIVO via openclaw send (sem cron de polling) ──
+# O Reviewer é acordado pelo state_engine no evento 'pr_created' via 'openclaw send'.
+# Um cron de segurança a cada 2h verifica PRs pendentes não processadas.
+create_cron "${PROJECT}-review-hb"      "${PROJECT}-reviewer"  "--every" "2h"         "HEARTBEAT: Leia e execute seu arquivo HEARTBEAT.md em ~/.openclaw/workspace/projects/${PROJECT}/agents/reviewer/HEARTBEAT.md"
+
+# ── Lead: crons de monitoramento ──
 create_cron "${PROJECT}-lead-standup"   "${PROJECT}-lead"      "--cron"  "0 23 * * *" "STANDUP: Leia e execute a seção 'Diário às 23h00' do seu HEARTBEAT.md em ~/.openclaw/workspace/projects/${PROJECT}/agents/lead/HEARTBEAT.md"
 create_cron "${PROJECT}-lead-reconcile" "${PROJECT}-lead"      "--every" "30m"        "RECONCILE: Execute a skill RECONCILE_STATE. Leia os detalhes em ~/.openclaw/workspace/skills/reconcile_state/SKILL.md"
 create_cron "${PROJECT}-lead-watchdog"  "${PROJECT}-lead"      "--every" "15m"        "WATCHDOG: Leia e execute a seção 'No ciclo de monitoramento (15 min)' do seu HEARTBEAT.md em ~/.openclaw/workspace/projects/${PROJECT}/agents/lead/HEARTBEAT.md"
