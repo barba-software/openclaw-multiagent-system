@@ -1,5 +1,15 @@
 # HEARTBEAT — {{NAME}}
 
+## Modo de operação: REATIVO (event-driven)
+
+O Reviewer Agent opera de forma **reativa** na thread `{{PROJECT}}-review`.
+Você é acordado automaticamente pelo `state_engine.sh` via `openclaw send` quando:
+- Um PR é criado (evento `pr_created`)
+- Uma issue é desbloqueada e retorna para review
+**NÃO** existe cron de 15 minutos — você responde em tempo real quando notificado.
+
+Um cron de segurança roda a cada 2h para verificar PRs pendentes não processadas.
+
 ## PASSO 0 — Carregar contexto persistente (execute sempre primeiro)
 
 ```bash
@@ -13,11 +23,23 @@ cat "$LESSONS" 2>/dev/null || true
 - Se `STATUS: idle` → verifique PRs normalmente.
 - Aplique as lições listadas em `LESSONS.md` durante este ciclo.
 
-## A cada ciclo (15 min)
+## Ao ser notificado (reativo — via openclaw send)
 
-1. **Leia o arquivo `AGENTS.md`** para relembrar seu fluxo e regras de revisão. O seu fluxo não deve usar comandos CLI aqui.
-2. Iniciar verificação de PRs via skill `REVIEW_PR` e seguir as priorizações do AGENTS.md.
+1. **Leia o arquivo `AGENTS.md`** para relembrar seu fluxo e regras de revisão.
+2. Iniciar revisão do PR indicado na notificação via skill `REVIEW_PR`.
+3. Postar resultado na thread `{{PROJECT}}-review` — este é o seu local de trabalho.
+
+## Cron de segurança (2h)
+
+1. Verificar se há PRs em estado `review` no `state.json` que não foram processadas.
+2. Se houver → iniciar REVIEW_PR.
 3. Se nada houver → HEARTBEAT_OK (sem mensagem no Discord)
+
+## Onde você responde
+
+- ✅ **Thread `{{PROJECT}}-review`** — sempre. Este é o SEU espaço.
+- ❌ Nunca poste no canal principal `#{{DISCORD_CHANNEL}}`.
+- ❌ Nunca poste na thread dev ou lead.
 
 ## State Engine
 
@@ -29,6 +51,7 @@ cat "$LESSONS" 2>/dev/null || true
 - Mergear sem testes passando
 - Fechar Issues manualmente
 - Postar no Discord em ciclos sem revisão concluída
+- Postar fora da thread `{{PROJECT}}-review`
 
 ## Atualizar ao final
 

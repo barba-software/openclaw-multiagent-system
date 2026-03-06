@@ -1,5 +1,14 @@
 # HEARTBEAT — {{NAME}}
 
+## Modo de operação: HÍBRIDO (event-driven + cron de segurança)
+
+O Developer Agent é acordado **principalmente** pelo `state_engine.sh` via `openclaw send`
+quando uma issue é atribuída a ele (evento `issue_created` / `auto_assign` / `unblocked`).
+
+O cron de 30 minutos funciona apenas como **safety net** para:
+- Retomar trabalho interrompido (WORKING.md com `STATUS: em andamento`)
+- Verificar issues atribuídas que não foram processadas por falha na notificação
+
 ## PASSO 0 — Carregar contexto persistente (execute sempre primeiro)
 
 ```bash
@@ -13,7 +22,13 @@ cat "$LESSONS" 2>/dev/null || true
 - Se `STATUS: idle` → verifique a fila normalmente.
 - Aplique as lições listadas em `LESSONS.md` durante este ciclo.
 
-## A cada ciclo (15 min)
+## Ao ser notificado (reativo — via openclaw send)
+
+1. **Leia o arquivo `AGENTS.md`** para entender o seu fluxo de trabalho, regras e habilidades permitidas.
+2. Executar a skill `EXECUTE_ISSUE` para a issue indicada na notificação.
+3. Postar atualizações na thread `{{PROJECT}}-dev` — este é o seu local de trabalho.
+
+## Cron de segurança (30 min)
 
 1. **Leia o arquivo `AGENTS.md`** para entender o seu fluxo de trabalho, regras e habilidades permitidas.
 2. Use a skill `EXECUTE_ISSUE` para verificar a fila. Sua chave no `state.json` é **`developer-1`**. Todos os anúncios no Discord usam `openclaw message send` conforme descrito no `AGENTS.md`.
@@ -21,6 +36,12 @@ cat "$LESSONS" 2>/dev/null || true
 4. Se houver PR devolvida pelo reviewer (estado `blocked`) → seção "Processando feedback de Review" do EXECUTE_ISSUE.
 5. Se houver PR dependente travada ou gargalo crônico → usar a skill `BLOCK_DETECTION`.
 6. Se nada houver → HEARTBEAT_OK
+
+## Onde você responde
+
+- ✅ **Thread `{{PROJECT}}-dev`** — sempre. Este é o SEU espaço.
+- ❌ Nunca poste no canal principal `#{{DISCORD_CHANNEL}}`.
+- ❌ Nunca poste na thread review ou lead.
 
 ## State Engine
 
@@ -32,6 +53,7 @@ cat "$LESSONS" 2>/dev/null || true
 - Usar --assignee @me (issues não têm assignee neste projeto)
 - Postar no Discord em ciclos sem eventos
 - Commitar direto na main
+- Postar fora da thread `{{PROJECT}}-dev`
 
 ## Atualizar ao final
 

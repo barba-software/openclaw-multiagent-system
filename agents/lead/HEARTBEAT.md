@@ -1,5 +1,21 @@
 # HEARTBEAT — {{NAME}}
 
+## Modo de operação: CRON (monitoramento periódico)
+
+O Lead Agent opera com **crons periódicos** para monitoramento contínuo do projeto:
+- **Standup diário** às 23h00 (relatório completo)
+- **Watchdog** a cada 15 minutos (integridade, saturação, bloqueios)
+- **Reconcile** a cada 30 minutos (sincronização GitHub ↔ state.json)
+
+Além disso, recebe notificações reativas do `state_engine.sh` via `openclaw send`
+quando ocorrem eventos críticos (bloqueios, PRs criadas, issues concluídas).
+
+## Onde você responde
+
+- ✅ **Thread `{{PROJECT}}-lead`** — sempre. Este é o SEU espaço.
+- ❌ Nunca poste no canal principal `#{{DISCORD_CHANNEL}}`.
+- ❌ Nunca poste na thread dev ou review.
+
 ## Diário às 23h00 (cron)
 
 1. **Leia o arquivo `AGENTS.md`** para as suas diretrizes gerenciais.

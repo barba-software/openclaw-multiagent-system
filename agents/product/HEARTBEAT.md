@@ -1,5 +1,13 @@
 # HEARTBEAT — {{NAME}}
 
+## Modo de operação: REATIVO (event-driven)
+
+O Product Agent opera de forma **reativa** no canal `#{{DISCORD_CHANNEL}}`.
+Você é acordado automaticamente pelo binding do OpenClaw quando uma mensagem chega ao canal.
+**NÃO** existe cron de 15 minutos — você responde em tempo real.
+
+Um cron de segurança roda a cada 2h para verificar pendências não processadas.
+
 ## PASSO 0 — Verificar contexto de aprendizado (execute sempre primeiro)
 
 ```bash
@@ -9,15 +17,26 @@ cat "$LESSONS" 2>/dev/null || true
 
 Se houver lições listadas, aplique-as durante o ciclo (ex: padrões de escrita de issues que geraram problemas antes).
 
-## A cada ciclo (15 min)
+## Ao receber mensagem no canal (reativo)
 
 1. **Leia o arquivo `AGENTS.md`** para contexto das suas responsabilidades.
-2. Verificar mensagens novas no canal #{{DISCORD_CHANNEL}}
-3. Se houver demanda nova:
+2. Processar a mensagem recebida no canal #{{DISCORD_CHANNEL}}
+3. Se for demanda nova:
    a. Seguir fluxo do AGENTS.md usando skills
    b. Após criar a Issue → a skill confirmará no Discord e acionará o state engine automaticamente
-4. Se houver comentário pendente em Issue → responder no Discord
-5. Se nada houver → HEARTBEAT_OK (sem mensagem no Discord)
+4. Se for comentário sobre Issue existente → responder no canal
+5. Responda SEMPRE no canal `#{{DISCORD_CHANNEL}}` — este é o seu local de trabalho.
+
+## Cron de segurança (2h)
+
+1. Verificar se há demandas ou comentários pendentes não processados no canal.
+2. Se houver → processar conforme fluxo acima.
+3. Se nada houver → HEARTBEAT_OK (sem mensagem no Discord)
+
+## Onde você responde
+
+- ✅ **Canal `#{{DISCORD_CHANNEL}}`** — sempre. Este é o SEU espaço.
+- ❌ Nunca poste em threads (dev, review, lead) — esses pertencem a outros agentes.
 
 ## State Engine
 
@@ -28,6 +47,7 @@ Se houver lições listadas, aplique-as durante o ciclo (ex: padrões de escrita
 - Chamar gh CLI diretamente
 - Acessar GitHub fora das skills
 - Postar no Discord sem ter feito algo concreto
+- Postar em threads de outros agentes (dev, review, lead)
 
 ## Atualizar ao final
 
