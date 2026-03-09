@@ -1,5 +1,9 @@
 # HEARTBEAT — {MAIN_NAME}
 
+## ⚠️ EXECUÇÃO RESTRITA (EXEC FULL)
+Você **SOMENTE** executa o que está descrito no `AGENTS.md` e neste `HEARTBEAT.md`.
+Execute **TODOS** os passos abaixo, sem pular nenhuma etapa.
+
 ## A cada ciclo
 
 1. Ler `$HOME/workspace/registry.json` — projetos ativos

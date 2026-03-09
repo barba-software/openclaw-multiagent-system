@@ -265,7 +265,14 @@ assign_by_capacity() {
   sync_label "$ISSUE" "in_progress"
 
   agent_id=$(map_agent_id "$dev")
-  msg="🔔 NOVA TAREFA: Issue #$ISSUE atribuída a você. Use a skill EXECUTE_ISSUE para iniciar. Anuncie imediatamente na thread ${PROJECT}-dev antes de começar."
+  msg="🔔 NOVA TAREFA ATRIBUÍDA: Issue #$ISSUE foi atribuída a você.
+
+⚡ ANTES DE COMEÇAR:
+1. Verifique se há PRs com mudanças solicitadas (prioridade máxima)
+2. Confirme que não há outra issue em andamento (capacity=1)
+3. Use a skill EXECUTE_ISSUE para iniciar
+
+📢 Anuncie IMEDIATAMENTE na thread ${PROJECT}-dev antes de qualquer ação."
   openclaw send --agent "$agent_id" --message "$msg" &>/dev/null \
     && audit "openclaw_send" "agent=$agent_id" \
     && echo "✔ $agent_id notificado" \
@@ -449,7 +456,14 @@ handle_pr_created() {
     || echo "⚠ Não foi possível notificar lead"
 
   # Notifica Reviewer
-  rev_msg="🔔 NOVA REVISÃO: PR #${pr_number:-?} aberta para Issue #$ISSUE. Use REVIEW_PR. Anuncie na thread ${PROJECT}-review antes de iniciar."
+  rev_msg="🔔 NOVA REVISÃO SOLICITADA: PR #${pr_number:-?} aberta para Issue #$ISSUE.
+
+📋 Ação obrigatória:
+1. Leia o AGENTS.md para relembrar suas regras
+2. Use a skill REVIEW_PR para revisão estruturada
+3. Anuncie IMEDIATAMENTE na thread ${PROJECT}-review antes de iniciar
+
+⚠️ Apenas ações descritas no AGENTS.md e HEARTBEAT.md são permitidas."
   openclaw send --agent "$PROJECT-reviewer" --message "$rev_msg" &>/dev/null \
     && echo "✔ Reviewer notificado" \
     || echo "⚠ Não foi possível notificar reviewer"
@@ -464,7 +478,16 @@ handle_blocked() {
     update_issue "blocked" "$last_dev"
 
     dev_id=$(map_agent_id "$last_dev")
-    dev_msg="🚨 AJUSTES NECESSÁRIOS: PR da Issue #$ISSUE devolvida pelo Reviewer. Veja os comentários no GitHub e use EXECUTE_ISSUE (seção 'feedback de Review'). Anuncie na thread ${PROJECT}-dev."
+    dev_msg="🚨 PRIORIDADE MÁXIMA — AJUSTES NECESSÁRIOS: PR da Issue #$ISSUE foi devolvida pelo Reviewer.
+
+Esta tarefa tem PRIORIDADE SOBRE NOVAS ISSUES.
+
+📋 Ação obrigatória:
+1. Leia os comentários do Reviewer no GitHub PR
+2. Use EXECUTE_ISSUE seção 'Processando feedback de Review'
+3. Anuncie imediatamente na thread ${PROJECT}-dev
+
+🔗 Motivo: ${METADATA:-ver comentários no PR}"
     openclaw send --agent "$dev_id" --message "$dev_msg" &>/dev/null \
       || echo "  ⚠ Não foi possível notificar $dev_id"
   else
@@ -491,7 +514,12 @@ handle_unblocked() {
     call_automation "In Progress"
 
     dev_id=$(map_agent_id "$METADATA")
-    unblock_msg="✅ DESBLOQUEADO: Issue #$ISSUE reatribuída a você. Retome com EXECUTE_ISSUE e anuncie na thread ${PROJECT}-dev."
+    unblock_msg="✅ DESBLOQUEADO: Issue #$ISSUE reatribuída a você.
+
+📋 Ação obrigatória:
+1. Verifique WORKING.md para retomar do ponto correto
+2. Use EXECUTE_ISSUE — seção adequada conforme STEP registrado
+3. Anuncie na thread ${PROJECT}-dev que você retomou"
     openclaw send --agent "$dev_id" --message "$unblock_msg" &>/dev/null || true
 
     lead_msg="✅ Issue #$ISSUE desbloqueada → reatribuída para $METADATA."

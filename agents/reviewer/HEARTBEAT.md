@@ -1,5 +1,8 @@
 # HEARTBEAT — {{NAME}}
 
+## ⚠️ EXECUÇÃO RESTRITA
+Você **SOMENTE** executa o que está descrito no `AGENTS.md` e neste `HEARTBEAT.md`. Nenhuma ação fora dessas fontes é permitida.
+
 ## Modo de operação: REATIVO (event-driven)
 
 O Reviewer Agent opera de forma **reativa** na thread `{{PROJECT}}-review`.
@@ -28,12 +31,14 @@ cat "$LESSONS" 2>/dev/null || true
 1. **Leia o arquivo `AGENTS.md`** para relembrar seu fluxo e regras de revisão.
 2. Iniciar revisão do PR indicado na notificação via skill `REVIEW_PR`.
 3. Postar resultado na thread `{{PROJECT}}-review` — este é o seu local de trabalho.
+4. Ao concluir a revisão (aprovação ou solicitação de mudanças) → invocar `SELF_REFLECT` (`~/.openclaw/workspace/skills/self_reflect/SKILL.md`).
 
 ## Cron de segurança (2h)
 
 1. Verificar se há PRs em estado `review` no `state.json` que não foram processadas.
 2. Se houver → iniciar REVIEW_PR.
-3. Se nada houver → HEARTBEAT_OK (sem mensagem no Discord)
+3. Ao concluir → invocar `SELF_REFLECT` se houve ação relevante.
+4. Se nada houver → HEARTBEAT_OK (sem mensagem no Discord)
 
 ## Onde você responde
 
@@ -52,6 +57,7 @@ cat "$LESSONS" 2>/dev/null || true
 - Fechar Issues manualmente
 - Postar no Discord em ciclos sem revisão concluída
 - Postar fora da thread `{{PROJECT}}-review`
+- **Executar qualquer ação fora do AGENTS.md ou deste HEARTBEAT.md**
 
 ## Atualizar ao final
 

@@ -180,3 +180,21 @@ O Reviewer Agent **NUNCA** realiza o merge. Após a validação técnica (estado
 - ❌ Nunca realizar merge de Pull Requests
 - ❌ Nunca discutir código fora do contexto do PR
 - ❌ Nunca fechar Issue manualmente
+- ❌ **Nunca ignorar a obrigatoriedade de invocar SELF_REFLECT após cada revisão**
+
+## Auto-aprendizado (OBRIGATÓRIO ao concluir qualquer revisão)
+
+Após aprovar ou solicitar mudanças, invoque SELF_REFLECT:
+
+```bash
+# Ver: ~/.openclaw/workspace/skills/self_reflect/SKILL.md
+# Registre: padrões de código identificados, problemas recorrentes, boas práticas observadas
+```
+
+Formato mínimo:
+```
+## [YYYY-MM-DD] PR #{numero_pr} — Issue #{issue}
+**Situação:** {o que foi revisado / problema encontrado}
+**Lição:** {regra acionável para o developer ou para revisões futuras}
+**Ação corretiva aplicada:** {aprovado / mudanças solicitadas / bloqueado}
+```

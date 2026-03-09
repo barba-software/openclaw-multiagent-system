@@ -1,5 +1,11 @@
 # AGENTS — {{NAME}}
 
+## ⚠️ REGRA DE OURO — EXECUÇÃO RESTRITA
+
+Você **SOMENTE** executa o que está descrito neste `AGENTS.md` e no seu `HEARTBEAT.md`.
+É **ESTRITAMENTE PROIBIDO** realizar qualquer ação, chamada de API, comando shell ou interação no Discord que não esteja explicitamente descrita nesses dois arquivos ou nas skills autorizadas listadas abaixo.
+Violações são falhas críticas de protocolo.
+
 ## Identidade no State Engine
 
 | Atributo                   | Valor                                           |
@@ -52,3 +58,4 @@ openclaw message send --channel discord --target "thread:$REVIEW_THREAD" --messa
 - Fechar Issues manualmente
 - Falar no canal #{{DISCORD_CHANNEL}} principal
 - Criar novas skills
+- **Executar qualquer ação fora do AGENTS.md ou do HEARTBEAT.md**

@@ -279,7 +279,7 @@ create_cron() {
   # Remove entrada anterior garantindo idempotência (sem loop — delete é no-op se não existir)
   openclaw cron delete "$name" 2>/dev/null || true
   openclaw cron add --name "$name" --agent "$agent" "$sched_flag" "$sched_val" \
-    --session isolated --message "$msg" --no-deliver 2>/dev/null \
+    --session isolated --message "$msg" --exec full --no-deliver 2>/dev/null \
     && ok "cron: $name" \
     || warn "cron $name — falha ao criar (crie manualmente se necessário)"
 }
@@ -288,22 +288,22 @@ create_cron() {
 # O Product Agent responde em tempo real às mensagens no canal #{{DISCORD_CHANNEL}}.
 # Ele é acordado automaticamente pelo binding do OpenClaw — não precisa de cron.
 # Um cron de segurança a cada 2h verifica pendências não processadas.
-create_cron "${PROJECT}-product-hb"     "${PROJECT}-product"   "--every" "2h"         "HEARTBEAT: Leia e execute seu arquivo HEARTBEAT.md em ~/.openclaw/workspace/projects/${PROJECT}/agents/product/HEARTBEAT.md"
+create_cron "${PROJECT}-product-hb"     "${PROJECT}-product"   "--every" "2h"         "HEARTBEAT (EXEC FULL): Leia e execute COMPLETAMENTE (todos os passos, sem pular nenhuma etapa) seu arquivo HEARTBEAT.md em ~/.openclaw/workspace/projects/${PROJECT}/agents/product/HEARTBEAT.md — SOMENTE execute ações descritas neste arquivo e no AGENTS.md"
 
 # ── Developer: cron de segurança (30 min) ──
 # O Developer é acordado via 'openclaw send' pelo state_engine quando uma issue é atribuída.
 # O cron funciona apenas como safety net para retomar trabalho interrompido (WORKING.md).
-create_cron "${PROJECT}-dev-hb"         "${PROJECT}-developer" "--every" "30m"        "HEARTBEAT: Leia e execute seu arquivo HEARTBEAT.md em ~/.openclaw/workspace/projects/${PROJECT}/agents/developer/HEARTBEAT.md"
+create_cron "${PROJECT}-dev-hb"         "${PROJECT}-developer" "--every" "30m"        "HEARTBEAT (EXEC FULL): Leia e execute COMPLETAMENTE (todos os passos, sem pular nenhuma etapa) seu arquivo HEARTBEAT.md em ~/.openclaw/workspace/projects/${PROJECT}/agents/developer/HEARTBEAT.md — PRIORIDADE: PRs com mudanças solicitadas > issues em andamento > novas issues — SOMENTE execute ações descritas neste arquivo e no AGENTS.md"
 
 # ── Reviewer: REATIVO via openclaw send (sem cron de polling) ──
 # O Reviewer é acordado pelo state_engine no evento 'pr_created' via 'openclaw send'.
 # Um cron de segurança a cada 2h verifica PRs pendentes não processadas.
-create_cron "${PROJECT}-review-hb"      "${PROJECT}-reviewer"  "--every" "2h"         "HEARTBEAT: Leia e execute seu arquivo HEARTBEAT.md em ~/.openclaw/workspace/projects/${PROJECT}/agents/reviewer/HEARTBEAT.md"
+create_cron "${PROJECT}-review-hb"      "${PROJECT}-reviewer"  "--every" "2h"         "HEARTBEAT (EXEC FULL): Leia e execute COMPLETAMENTE (todos os passos, sem pular nenhuma etapa) seu arquivo HEARTBEAT.md em ~/.openclaw/workspace/projects/${PROJECT}/agents/reviewer/HEARTBEAT.md — SOMENTE execute ações descritas neste arquivo e no AGENTS.md"
 
 # ── Lead: crons de monitoramento ──
-create_cron "${PROJECT}-lead-standup"   "${PROJECT}-lead"      "--cron"  "0 23 * * *" "STANDUP: Leia e execute a seção 'Diário às 23h00' do seu HEARTBEAT.md em ~/.openclaw/workspace/projects/${PROJECT}/agents/lead/HEARTBEAT.md"
-create_cron "${PROJECT}-lead-reconcile" "${PROJECT}-lead"      "--every" "30m"        "RECONCILE: Execute a skill RECONCILE_STATE. Leia os detalhes em ~/.openclaw/workspace/skills/reconcile_state/SKILL.md"
-create_cron "${PROJECT}-lead-watchdog"  "${PROJECT}-lead"      "--every" "15m"        "WATCHDOG: Leia e execute a seção 'No ciclo de monitoramento (15 min)' do seu HEARTBEAT.md em ~/.openclaw/workspace/projects/${PROJECT}/agents/lead/HEARTBEAT.md"
+create_cron "${PROJECT}-lead-standup"   "${PROJECT}-lead"      "--cron"  "0 23 * * *" "STANDUP (EXEC FULL): Leia e execute COMPLETAMENTE a seção 'Diário às 23h00' do seu HEARTBEAT.md em ~/.openclaw/workspace/projects/${PROJECT}/agents/lead/HEARTBEAT.md — SOMENTE execute ações descritas neste arquivo e no AGENTS.md"
+create_cron "${PROJECT}-lead-reconcile" "${PROJECT}-lead"      "--every" "30m"        "RECONCILE (EXEC FULL): Execute a skill RECONCILE_STATE completamente. Leia os detalhes em ~/.openclaw/workspace/skills/reconcile_state/SKILL.md — SOMENTE execute ações descritas no AGENTS.md e HEARTBEAT.md"
+create_cron "${PROJECT}-lead-watchdog"  "${PROJECT}-lead"      "--every" "15m"        "WATCHDOG (EXEC FULL): Leia e execute COMPLETAMENTE a seção 'No ciclo de monitoramento (15 min)' do seu HEARTBEAT.md em ~/.openclaw/workspace/projects/${PROJECT}/agents/lead/HEARTBEAT.md — SOMENTE execute ações descritas neste arquivo e no AGENTS.md"
 echo ""
 
 # =============================================================================

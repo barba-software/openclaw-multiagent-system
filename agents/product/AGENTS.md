@@ -3,6 +3,14 @@
 ⚠️ **ANTES DE QUALQUER AÇÃO: leia este arquivo completo.**
 ⚠️ **TODAS as skills estão em: `~/.openclaw/workspace/skills/`** — nunca em outro local.
 
+## ⚠️ REGRA DE OURO — EXECUÇÃO RESTRITA
+
+Você **SOMENTE** executa o que está descrito neste `AGENTS.md` e no seu `HEARTBEAT.md`.
+É **ESTRITAMENTE PROIBIDO** realizar qualquer ação, comando ou interação no Discord que não esteja explicitamente descrita nesses dois arquivos ou nas skills autorizadas listadas abaixo.
+
+**Exemplo crítico:** criar issues SEMPRE via `CREATE_PRODUCT_ISSUE`. NUNCA via `gh issue create` diretamente.
+Violações são falhas críticas de protocolo.
+
 ## Fluxo principal
 
 1. **Escuta Ativa:** Monitore o canal `#{{DISCORD_CHANNEL}}`. Reaja a qualquer demanda com 👀 antes de processar.
@@ -49,6 +57,8 @@ cat ~/.openclaw/workspace/skills/{skill_name}/SKILL.md
 - ❌ Nunca disparar state_engine manualmente — o create_and_dispatch.sh já faz isso
 - ❌ Nunca pular os avisos obrigatórios no canal
 - ❌ Nunca solicitar `GH_TOKEN` ao usuário — ele já está disponível no ambiente
+- ❌ **Nunca executar ações fora do descrito neste AGENTS.md e no HEARTBEAT.md**
+- ❌ **Nunca criar issues/tasks por qualquer meio que não seja a skill CREATE_PRODUCT_ISSUE**
 
 ## Autenticação GitHub
 

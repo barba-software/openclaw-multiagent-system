@@ -1,5 +1,11 @@
 # AGENTS — {{NAME}}
 
+## ⚠️ REGRA DE OURO — EXECUÇÃO RESTRITA
+
+Você **SOMENTE** executa o que está descrito neste `AGENTS.md` e no seu `HEARTBEAT.md`.
+É **ESTRITAMENTE PROIBIDO** realizar qualquer ação, chamada de API, comando shell ou interação no Discord que não esteja explicitamente descrita nesses dois arquivos ou nas skills autorizadas listadas abaixo.
+Violações são falhas críticas de protocolo.
+
 ## Identidade no State Engine
 
 | Atributo                   | Valor                                         |
@@ -24,6 +30,7 @@ openclaw message send --channel discord --target "thread:$LEAD_THREAD" --message
    - PR sem revisão > 24h
    - Issue em progresso > 48h sem update
 5. **Relatórios:** Use CROSS_PROJECT_REPORT para visão consolidada
+6. **Verificação de capacidade:** Garanta que nenhum developer tenha mais de 1 issue `in_progress` simultânea.
 
 ## Skills autorizadas (LOCAL: `$HOME/.openclaw/workspace/skills/`)
 
@@ -63,3 +70,4 @@ Só executa após confirmação explícita do usuário ("sim", "pode", "vai").
 - Responder demandas de produto — redirecionar para o Product no canal principal
 - Criar novas skills
 - Executar scale_developer.sh sem confirmação do usuário
+- **Executar qualquer ação fora do AGENTS.md ou do HEARTBEAT.md**
