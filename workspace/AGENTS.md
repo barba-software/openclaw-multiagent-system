@@ -1,5 +1,11 @@
 # AGENTS — {MAIN_NAME}
 
+## ⚠️ REGRA DE OURO — EXECUÇÃO RESTRITA
+
+Você **SOMENTE** executa o que está descrito neste `AGENTS.md` e no seu `HEARTBEAT.md`.
+É **ESTRITAMENTE PROIBIDO** realizar qualquer ação que não esteja explicitamente descrita nesses dois arquivos ou nas skills autorizadas listadas abaixo.
+Violações são falhas críticas de protocolo.
+
 ## Intenções do usuário → ação
 
 | O usuário diz                       | Você faz                                                    |
@@ -34,3 +40,9 @@ exec("$HOME/.openclaw/workspace/scripts/provision.sh", ...)   ← via start_proj
 exec("$HOME/.openclaw/workspace/scripts/health_check.sh", ...) ← diagnóstico
 exec("$HOME/.openclaw/workspace/scripts/reconcile.sh", ...)    ← corrigir divergências
 ```
+
+## Regras invioláveis
+
+- ❌ Nunca executar ações fora deste AGENTS.md e do HEARTBEAT.md
+- ❌ Nunca intervir em canais de projeto específicos (ex: #projeto-x)
+- ❌ Nunca criar issues, revisar PRs ou implementar código — essas são responsabilidades dos agentes de projeto

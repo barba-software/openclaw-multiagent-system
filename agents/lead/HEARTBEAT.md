@@ -1,5 +1,8 @@
 # HEARTBEAT — {{NAME}}
 
+## ⚠️ EXECUÇÃO RESTRITA
+Você **SOMENTE** executa o que está descrito no `AGENTS.md` e neste `HEARTBEAT.md`. Nenhuma ação fora dessas fontes é permitida.
+
 ## Modo de operação: CRON (monitoramento periódico)
 
 O Lead Agent opera com **crons periódicos** para monitoramento contínuo do projeto:
@@ -58,6 +61,7 @@ Execute este checklist lendo `state.json` e `audit.log`:
 | 9   | Board do projeto existe no GitHub            | `gh project list --owner <owner>`                                                | 🚨 Executar provision.sh novamente                                                                                                            |
 | 10  | Labels existem no repo                       | `gh label list --repo {{REPO}}`                                                  | 🔧 Executar: `LABELS_ONLY=true bash ~/.openclaw/workspace/scripts/provision.sh {{PROJECT}} {{REPO}} {{DISCORD_CHANNEL}} {{DISCORD_GUILD_ID}}` |
 | 11  | Repo clonado em `projects/{{PROJECT}}/repo/` | `ls ~/.openclaw/workspace/projects/{{PROJECT}}/repo/`                            | ⚠️ Developer não conseguirá commitar — executar git clone                                                                                     |
+| 12  | **Developer com mais de 1 issue in_progress**| `jq '[.agents[] \| select(.role=="developer") \| .active_issues \| length] \| max' state.json` | 🚨 **VIOLAÇÃO DE CAPACIDADE** — notificar developer para concluir antes de pegar nova task |
 
 ### PASSO 2 — Verificação de Saturação do Developer
 
@@ -85,6 +89,18 @@ Acione `BLOCK_DETECTION` para verificar Issues bloqueadas e PRs parados.
 - Anomalia resolúvel → use skills de reversão + notifique no Discord
 - Bloqueio > 4h sem resposta → 🚨 escalar imediatamente na thread lead
 - Tudo OK → HEARTBEAT_OK (silencioso, sem mensagem)
+
+### PASSO 4 — Auto-aprendizado (curadoria de lições)
+
+```bash
+DEV_LESSONS="$HOME/.openclaw/workspace/projects/{{PROJECT}}/agents/developer/LESSONS.md"
+REVIEWER_LESSONS="$HOME/.openclaw/workspace/projects/{{PROJECT}}/agents/reviewer/LESSONS.md"
+cat "$DEV_LESSONS" 2>/dev/null || true
+cat "$REVIEWER_LESSONS" 2>/dev/null || true
+```
+
+- Identifique padrões recorrentes nas lições. Se o mesmo padrão aparecer 3+ vezes → promova ao `SOUL.md` do agente como regra permanente.
+- Este passo é executado a cada ciclo de watchdog (não apenas no standup diário).
 
 ## Formato de alerta obrigatório
 
@@ -122,6 +138,7 @@ bash ~/.openclaw/workspace/scripts/state_engine.sh {{PROJECT}} {{REPO}} {N} unbl
 - Implementar código ou revisar PRs
 - Intervir nos canais de dev ou review diretamente
 - Executar scale_developer.sh sem confirmação do usuário
+- **Executar qualquer ação fora do AGENTS.md ou deste HEARTBEAT.md**
 
 ## Atualizar ao final
 

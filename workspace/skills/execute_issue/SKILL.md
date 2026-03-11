@@ -13,6 +13,38 @@ description: "Gerencia o ciclo de desenvolvimento: branch, commits e Pull Reques
 
 ## Protocolo de Execução
 
+### -1. Verificação de Prioridade Máxima — PRs com mudanças solicitadas
+
+**Execute SEMPRE antes de qualquer outra ação:**
+
+```bash
+cat ~/.openclaw/workspace/projects/{project}/state.json | jq -r '
+  .issues | to_entries[]
+  | select(.value.status == "blocked" and (.value.last_developer // "" | length) > 0)
+  | "🚨 PRIORIDADE MÁXIMA — Issue #\(.key) aguarda ajustes de review"
+'
+```
+
+Se houver issues em `blocked` com `last_developer` → vá imediatamente para a seção **Processando feedback de Review** abaixo. Só após concluir os ajustes passe para novas tarefas.
+
+### 0a. Verificação de Capacidade — UMA task por vez
+
+```bash
+cat ~/.openclaw/workspace/projects/{project}/state.json | jq '
+  .agents["developer-1"].active_issues
+'
+```
+
+Se `active_issues` já tiver 1 ou mais issues E nenhuma delas for `blocked` (vindo de review) → **PARE**. Conclua a issue atual antes de aceitar nova tarefa. Poste na thread dev:
+
+```bash
+DEV_THREAD=$(jq -r '.discord.threads.dev // empty' ~/.openclaw/workspace/projects/{project}/state.json)
+openclaw message send \
+  --channel discord \
+  --target "thread:$DEV_THREAD" \
+  --message "⏸️ Capacidade ocupada — concluindo Issue atual antes de aceitar nova tarefa"
+```
+
 ### 0. Carregar contexto persistente (sempre primeiro)
 
 ```bash
@@ -185,6 +217,23 @@ sed -i '' 's/^STEP: .*/STEP: 0/' "$WORKING"
 sed -i '' 's/^NEXT: .*/NEXT: aguardando issues/' "$WORKING"
 sed -i '' 's/^BRANCH: .*/BRANCH: —/' "$WORKING"
 sed -i '' "s/^UPDATED: .*/UPDATED: $(date -Iseconds)/" "$WORKING"
+```
+
+### 12. Auto-aprendizado (OBRIGATÓRIO ao concluir qualquer issue)
+
+Invoque SELF_REFLECT para registrar lições aprendidas neste ciclo:
+
+```bash
+# Ver: ~/.openclaw/workspace/skills/self_reflect/SKILL.md
+# Registre: o que funcionou bem, o que precisou de ajuste, padrões identificados
+```
+
+Formato mínimo:
+```
+## [YYYY-MM-DD] Issue #{numero} — {título resumido}
+**Situação:** {o que aconteceu durante a implementação}
+**Lição:** {regra acionável para ciclos futuros}
+**Ação corretiva aplicada:** {o que foi feito}
 ```
 
 ---
