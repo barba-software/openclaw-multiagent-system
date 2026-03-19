@@ -386,27 +386,29 @@ else
     STATUS_FIELD_ID=$(echo "$STATUS_FIELD" | jq -r '.data.node.fields.nodes[] | select(.name=="Status") | .id' 2>/dev/null | head -1 || true)
 
     if [ -n "$STATUS_FIELD_ID" ]; then
-      # Verificar quais options já existem
-      EXISTING_OPTIONS=$(echo "$STATUS_FIELD" | jq -r '.data.node.fields.nodes[] | select(.name=="Status") | .options[].name' 2>/dev/null || true)
-
-      for col in "Inbox" "In Progress" "Review" "Blocked" "Done"; do
-        if ! echo "$EXISTING_OPTIONS" | grep -qx "$col"; then
-          gh api graphql -f query="
-            mutation {
-              updateProjectV2Field(input: {
-                projectId: \"$BOARD_ID\"
-                fieldId: \"$STATUS_FIELD_ID\"
-                singleSelectOptionInput: { name: \"$col\", color: GRAY, description: \"\" }
-              }) { projectV2Field { id } }
+      # Configurar colunas do board
+      # Atualizar todas as opções do Status de uma vez
+      gh api graphql -f query="
+        mutation {
+          updateProjectV2Field(input: {
+            fieldId: \"$STATUS_FIELD_ID\"
+            singleSelectOptions: [
+              {name: \"Inbox\", color: GRAY, description: \"Aguardando atribuicao\"},
+              {name: \"In Progress\", color: YELLOW, description: \"Em desenvolvimento\"},
+              {name: \"Review\", color: PURPLE, description: \"Aguardando revisao\"},
+              {name: \"Blocked\", color: RED, description: \"Bloqueada\"},
+              {name: \"Done\", color: GREEN, description: \"Concluida\"}
+            ]
+          }) {
+            projectV2Field {
+              ... on ProjectV2SingleSelectField { id name options { name } }
             }
-          " &>/dev/null || true
-          ok "Coluna criada: $col"
-        else
-          ok "Coluna já existe: $col"
-        fi
-      done
+          }
+        }
+      " &>/dev/null || true
+      ok "Colunas Status configuradas: Inbox, In Progress, Review, Blocked, Done"
     else
-      warn "Campo Status não encontrado — configure as colunas manualmente: Inbox, In Progress, Review, Blocked, Done"
+      warn "Campo Status nao encontrado — configure as colunas manualmente: Inbox, In Progress, Review, Blocked, Done"
     fi
   fi
 fi
