@@ -279,7 +279,8 @@ create_cron() {
   # Remove entrada anterior garantindo idempotência (sem loop — delete é no-op se não existir)
   openclaw cron delete "$name" 2>/dev/null || true
   openclaw cron add --name "$name" --agent "$agent" "$sched_flag" "$sched_val" \
-    --session isolated --message "$msg" --exec full --no-deliver 2>/dev/null \
+    --session isolated --message "$msg" --exec full --no-deliver \
+    --timeout-seconds 600 --wake next-heartbeat 2>/dev/null \
     && ok "cron: $name" \
     || warn "cron $name — falha ao criar (crie manualmente se necessário)"
 }
