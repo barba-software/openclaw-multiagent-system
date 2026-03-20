@@ -96,11 +96,11 @@ while IFS= read -r issue_id; do
   # Mapear status interno → coluna do board (bash compat, sem declare -A em subshell)
   board_status=""
   case "$status" in
-    inbox)       board_status="Inbox" ;;
+	inbox) board_status="Inbox" ;;
     in_progress) board_status="In Progress" ;;
-    review)      board_status="Review" ;;
-    approved)    board_status="Review" ;;
-    blocked)     board_status="Blocked" ;;
+	review) board_status="Review" ;;
+	approved) board_status="Review" ;;
+	blocked) board_status="Blocked" ;;
     done)        board_status="Done" ;;
   esac
   if [ -n "$board_status" ]; then
